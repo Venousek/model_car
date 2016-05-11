@@ -217,8 +217,8 @@ int main(int argc, char **argv)
     std::string path_30features;
 
     //nh.param<std::string>("camera_name", camera_name, "/usb_cam/image_raw"); 
-    nh.param<int>(node_name+"/cam_w", cam_w, 640);
-    nh.param<int>(node_name+"/cam_h", cam_h, 480);
+    nh.param<int>("cam_w", cam_w, 640);
+    nh.param<int>("cam_h", cam_h, 480);
     nh.param<int>(node_name+"/proj_y_start", proj_y_start, 400);
     nh.param<int>(node_name+"/proj_image_h", proj_image_h, 40);
     nh.param<int>(node_name+"/proj_image_w", proj_image_w, 80);
