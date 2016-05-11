@@ -18,8 +18,8 @@
 
   <!--node name="openni2_node" pkg="openni2_launch" type="openni2_launch" /-->
   <node name="line_detection_node" pkg="line_detection" type="line_detection_node" >
-  	<param name="cam_w"         		  	    type="int" 		value="640"/>  
-  	<param name="cam_h"		   		    	      type="int" 		value="480"/>
+  	<param name="cam_w"         		  	    type="int" 		value="1280"/>  
+  	<param name="cam_h"		   		    	      type="int" 		value="720"/>
   	<param name="proj_y_start"            	type="int" 		value="50"/>
   	<param name="proj_image_h"            	type="int" 		value="80"/>
   	<param name="proj_image_w"            	type="int" 		value="120"/>
@@ -32,9 +32,9 @@
   	<param name="path_30features"         	type="string" value="/home/vena/Dropbox/lane_detection/catkin_ws/src/model_car/line_detection/src/strongClassifiers/classifier_30features.txt"/>
   </node>
 
-  <param name="camera_name"     type="string"   value="/usb_cam/image_raw"/>  
-  <param name="ow"              type="int"      value="640"/>  
-  <param name="oh"              type="int"      value="480"/>
+  <param name="camera_name"     type="string"   value="/camera/rgb/image_raw"/>  
+  <param name="ow"              type="int"      value="1280"/>  
+  <param name="oh"              type="int"      value="720"/>
   <param name="f_u"             type="double"   value="624.650635"/>
   <param name="f_v"             type="double"   value="626.987244"/>
   <param name="c_u"             type="double"   value="309.703230"/>
