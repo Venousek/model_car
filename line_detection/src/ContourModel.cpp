@@ -23,8 +23,6 @@ THIS SOFTWARE IS PROVIDED BY AUDI AG AND CONTRIBUTORS “AS IS” AND ANY EXPRES
 
 #include "ContourModel.h"
 
-#define PROJECTED_IMAGE_WIDTH_HALF 40
-
 //check weather to merge two contours based on the center points and directions
 bool ContourModel::mergeContours(Point2d centre1,Point2d dir1,Point2d centre2,Point2d dir2)
 {
@@ -61,7 +59,7 @@ bool acompareCont(vector<Point> lContour, vector<Point> rContour)
     return contourArea(lContour) < contourArea(rContour);
 }
 
-bool ContourModel::update(vector<vector<Point> > contours,vector<Point2d>& originalPoints)
+bool ContourModel::update(vector<vector<Point> > contours,vector<Point2d>& originalPoints, int image_w_half)
 {
     
     //step 1: find the larger contours to filter out some noise (area > thresh)
@@ -272,7 +270,7 @@ bool ContourModel::update(vector<vector<Point> > contours,vector<Point2d>& origi
                     {
                         if(pointPolygonTest(currCont, Point(x,y), false) >= 0)
                         {
-                            temp_result.push_back(Point2d(x-PROJECTED_IMAGE_WIDTH_HALF,y));
+                            temp_result.push_back(Point2d(x-image_w_half,y));
                         }
                     }
                 }
@@ -294,7 +292,7 @@ bool ContourModel::update(vector<vector<Point> > contours,vector<Point2d>& origi
                 {
                     if(pointPolygonTest(largestSingleContour, Point(x,y), false) >= 0)
                     {
-                        temp_result2.push_back(Point2d(x-PROJECTED_IMAGE_WIDTH_HALF,y));
+                        temp_result2.push_back(Point2d(x-image_w_half,y));
                     }
                 }
             }
@@ -333,7 +331,7 @@ bool ContourModel::update(vector<vector<Point> > contours,vector<Point2d>& origi
                 {
                     if(pointPolygonTest(currContour, Point(x,y), false) >= 0)
                     {
-                        temp_result.push_back(Point2d(x-PROJECTED_IMAGE_WIDTH_HALF,y));
+                        temp_result.push_back(Point2d(x-image_w_half,y));
                     }
                 }
             }
@@ -365,7 +363,7 @@ bool ContourModel::update(vector<vector<Point> > contours,vector<Point2d>& origi
                 //check if within the contour:
                 if(pointPolygonTest(currContour, originalPoints.at(k), false) >= 0)
                 {
-                    temp_result.push_back(Point2d(originalPoints.at(k).x-PROJECTED_IMAGE_WIDTH_HALF, originalPoints.at(k).y));
+                    temp_result.push_back(Point2d(originalPoints.at(k).x-image_w_half, originalPoints.at(k).y));
                 }
             }
         }

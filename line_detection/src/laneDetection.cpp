@@ -125,7 +125,7 @@ void cLaneDetection::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
         vector<Vec4i> hierarchy;
         findContours(circleImage,contours,hierarchy,RETR_TREE,CHAIN_APPROX_SIMPLE,Point(0,0));
         ContourModel cModel;
-        bool midLaneFound = cModel.update(contours,laneMarkings);
+        bool midLaneFound = cModel.update(contours,laneMarkings,proj_image_w_half);
         vector<vector<Point2d> > nicelyGroupedPoints = cModel.points;
 
         if (midLaneFound)

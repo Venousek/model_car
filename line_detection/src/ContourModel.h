@@ -39,7 +39,7 @@ public:
     
     //returns true if a middle lane was detected, then the middle lane is the first
     //vector of the good points
-    bool update(vector<vector<Point> > contours,vector<Point2d>& originalPoints);
+    bool update(vector<vector<Point> > contours,vector<Point2d>& originalPoints, int image_w_half);
     
     vector<vector<Point2d> > points;
     

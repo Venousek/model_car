@@ -82,7 +82,7 @@ vector<Point2d> LaneDetector::detect(Mat grayscaleImage,Mat sobeledImage,Mat gro
                 continue;
             }
 
-            
+
             totalDetectors++;
             
             if(groundplaneImage.at<uchar>(i+detectorSizeHalf,j+detectorSizeHalf) == 0)continue;
@@ -97,7 +97,7 @@ vector<Point2d> LaneDetector::detect(Mat grayscaleImage,Mat sobeledImage,Mat gro
             int classifyResult = classifier_2features.classifyImage(integralImage, rotatedIntegralImage);
 
             if(classifyResult == 0)continue;
-
+            
             classifyResult = classifier_30features.classifyImage(integralImage, rotatedIntegralImage);
 
             detectorsEval++;
