@@ -1,0 +1,21 @@
+<launch>
+  <!--<include file="$(find openni2_launch)/launch/openni2.launch" />-->
+
+  <!--node name="openni2_node" pkg="openni2_launch" type="openni2_launch" /-->
+  <node name="line_detection_node" pkg="line_detection" type="line_detection_node" >
+  	<param name="cam_w"         		  	    type="int" 		value="640"/>  
+  	<param name="cam_h"		   		    	      type="int" 		value="480"/>
+  	<param name="proj_y_start"            	type="int" 		value="50"/>
+  	<param name="proj_image_h"            	type="int" 		value="40"/>
+  	<param name="proj_image_w"            	type="int" 		value="80"/>
+  	<param name="roi_top_w"            		  type="int" 		value="35"/>
+  	<param name="roi_bottom_w"            	type="int" 		value="35"/>
+    <param name="roi_horizontal_offset"     type="int"    value="-10"/>
+  	<param name="detector_size"         	  type="int" 		value="16"/>
+    <param name="lane_width"                type="int"    value="17"/>
+  	<param name="path_2features"         	  type="string" 	value="/home/vena/Dropbox/lane_detection/catkin_ws/src/line_detection/src/strongClassifiers/classifier_2features.txt"/>
+  	<param name="path_30features"         	type="string" 	value="/home/vena/Dropbox/lane_detection/catkin_ws/src/line_detection/src/strongClassifiers/classifier_30features.txt"/>
+  </node>
+
+  <node name="ip_mapper_node" pkg="ip_mapping" type="ip_mapper_node" />
+</launch>
