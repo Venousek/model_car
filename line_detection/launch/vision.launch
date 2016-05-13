@@ -25,19 +25,19 @@
 
   <node name="line_detection_node" pkg="line_detection" type="line_detection_node" >
   	
-  	<param name="proj_y_start"            	type="int" 		value="50"/>
-  	<param name="proj_image_h"            	type="int" 		value="80"/>
-  	<param name="proj_image_w"            	type="int" 		value="120"/>
-  	<param name="roi_top_w"            		  type="int" 		value="70"/>
-  	<param name="roi_bottom_w"            	type="int" 		value="70"/>
-    <param name="roi_horizontal_offset"     type="int"    value="0"/>
-  	<param name="detector_size"         	  type="int" 		value="16"/>
-    <param name="lane_width"                type="int"    value="35"/>
-  	<param name="path_2features"         	  type="string" value="/home/vena/Dropbox/lane_detection/catkin_ws/src/model_car/line_detection/src/strongClassifiers/classifier_2features.txt"/>
-  	<param name="path_30features"         	type="string" value="/home/vena/Dropbox/lane_detection/catkin_ws/src/model_car/line_detection/src/strongClassifiers/classifier_30features.txt"/>
+  	<param name="proj_y_start"            	    type="int" 		value="40"/>
+  	<param name="proj_image_h"            	    type="int" 		value="80"/>
+  	<param name="proj_image_w"            	    type="int" 		value="120"/>
+  	<param name="proj_image_horizontal_offset"  type="int"    value="0"/>
+    <param name="roi_top_w"            		      type="int" 		value="70"/>
+  	<param name="roi_bottom_w"            	    type="int" 		value="70"/>    
+  	<param name="detector_size"         	      type="int" 		value="16"/>
+    <param name="lane_width"                    type="int"    value="35"/>
+  	<param name="path_2features"         	      type="string" value="$(find line_detection)/src/strongClassifiers/classifier_2features.txt"/>
+  	<param name="path_30features"         	    type="string" value="$(find line_detection)/src/strongClassifiers/classifier_30features.txt"/>
   </node>
 
-  <param name="camera_name"     type="string"   value="/usb_cam/image_raw"/>  
+  <param name="camera_name"     type="string"   value="/camera/rgb/image_raw"/>
   <param name="f_u"             type="double"   value="624.650635"/>
   <param name="f_v"             type="double"   value="626.987244"/>
   <param name="c_u"             type="double"   value="309.703230"/>

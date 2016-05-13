@@ -64,7 +64,7 @@ class cLaneDetection
 
         // publishers
         ros::Publisher publish_images;
-        ros::Publisher publish_parabola;;
+        ros::Publisher publish_curvature;;
 
         double m_LastValue;
 
@@ -107,9 +107,7 @@ class cLaneDetection
         int proj_image_w_half;
         int roi_top_w;
         int roi_bottom_w;
-        int roi_horizontal_offset;
-
-        
+        int proj_image_horizontal_offset;
 
 
 

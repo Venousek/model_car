@@ -4,7 +4,7 @@
 using namespace std;
 using namespace cv;
 
-//#define PAINT_OUTPUT
+#define PAINT_OUTPUT
 
 static const uint32_t MY_ROS_QUEUE_SIZE = 1000;
 
@@ -17,11 +17,11 @@ std::string rgb_frame_id = "_rgb_optical_frame";
 sensor_msgs::CameraInfoPtr rgb_camera_info;
 
 cLaneDetection::cLaneDetection(ros::NodeHandle nh, int cam_w_, int cam_h_, int proj_y_start_,
-        int proj_image_h_, int proj_image_w_, int roi_top_w_, int roi_bottom_w_, int roi_horizontal_offset_,
+        int proj_image_h_, int proj_image_w_, int roi_top_w_, int roi_bottom_w_, int proj_image_horizontal_offset_,
         int detector_size, int lane_width,
         std::string path_2features, std::string path_30features)
     : nh_(nh), priv_nh_("~"),detector(detector_size,Point(0,0),Point(proj_image_w_,proj_image_h_),
-        proj_image_h_,proj_image_w_,roi_top_w_,roi_bottom_w_,roi_horizontal_offset_,path_2features, path_30features),model(true, proj_image_w_/2, lane_width)
+        proj_image_h_,proj_image_w_,roi_top_w_,roi_bottom_w_,path_2features, path_30features),model(true, proj_image_w_/2, lane_width)
 {
     //m_Busy = false;
     //priv_nh_.param<std::string>("PATH_2FEATURES", PATH_2FEATURES, "");
@@ -35,17 +35,14 @@ cLaneDetection::cLaneDetection(ros::NodeHandle nh, int cam_w_, int cam_h_, int p
     proj_image_w_half = proj_image_w/2;
     roi_top_w = roi_top_w_;
     roi_bottom_w = roi_bottom_w_;
-    roi_horizontal_offset = roi_horizontal_offset_;
+    proj_image_horizontal_offset = proj_image_horizontal_offset_;
 
     head_time_stamp = ros::Time::now();
 
     m_LastValue = 0;
     read_images_ = nh.subscribe(nh_.resolveName("/camera/ground_image_ipmapped"), 1,&cLaneDetection::ProcessInput,this);
 
-
-    //publish_images = nh.advertise<sensor_msgs::CompressedImage>("/lane_model/lane_model_image", MY_ROS_QUEUE_SIZE);
-
-    publish_parabola = nh.advertise<std_msgs::Float32>("/lane_model/parabola", MY_ROS_QUEUE_SIZE);
+    publish_curvature = nh.advertise<std_msgs::Float32>("/lane_model/curvature", MY_ROS_QUEUE_SIZE);
 
     image_transport::ImageTransport image_transport(nh);
     
@@ -96,11 +93,11 @@ void cLaneDetection::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
 
 
         //Rect(X,Y,Width,Height)
-        Mat transformedImage = image(Rect((cam_w/2)-proj_image_w_half,
+        Mat transformedImage = image(Rect((cam_w/2)-proj_image_w_half+proj_image_horizontal_offset,
             proj_y_start,proj_image_w,proj_image_h)).clone();
-        Mat sobeledImage     = image(Rect((cam_w/2)-proj_image_w_half,
+        Mat sobeledImage     = image(Rect((cam_w/2)-proj_image_w_half+proj_image_horizontal_offset,
             proj_y_start,proj_image_w,proj_image_h)).clone();
-        Mat groundPlane      = image(Rect((cam_w/2)-proj_image_w_half,
+        Mat groundPlane      = image(Rect((cam_w/2)-proj_image_w_half+proj_image_horizontal_offset,
             proj_y_start,proj_image_w,proj_image_h)).clone();
 
 
@@ -123,10 +120,10 @@ void cLaneDetection::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
                 circle(transformedImagePaintable,laneMarkings.at(i),1,Scalar(0,0,255),-1);
             }
 
-            Point2d p1(proj_image_w_half-(roi_bottom_w/2)+roi_horizontal_offset,proj_image_h-1);
-            Point2d p2(proj_image_w_half+(roi_bottom_w/2)+roi_horizontal_offset,proj_image_h-1);
-            Point2d p3(proj_image_w_half+(roi_top_w/2)+roi_horizontal_offset,0);
-            Point2d p4(proj_image_w_half-(roi_top_w/2)+roi_horizontal_offset,0);
+            Point2d p1(proj_image_w_half-(roi_bottom_w/2),proj_image_h-1);
+            Point2d p2(proj_image_w_half+(roi_bottom_w/2),proj_image_h-1);
+            Point2d p3(proj_image_w_half+(roi_top_w/2),0);
+            Point2d p4(proj_image_w_half-(roi_top_w/2),0);
             line(transformedImagePaintable,p1,p2,Scalar(0,200,0));
             line(transformedImagePaintable,p2,p3,Scalar(0,200,0));
             line(transformedImagePaintable,p3,p4,Scalar(0,200,0));
@@ -228,9 +225,9 @@ void cLaneDetection::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
         //out_msg.image    = laneModelDrawing; // Your cv::Mat
         //publish_images.publish(out_msg.toImageMsg());
 
-        std_msgs::Float32 parabola;
-        parabola.data = model.getHistoryParabola().at(0);
-        publish_parabola.publish(parabola);
+        std_msgs::Float32 curvMsg;
+        curvMsg.data = curvature*100;
+        publish_curvature.publish(curvMsg);
 
     } 
     catch (const cv_bridge::Exception& e)
@@ -304,7 +301,7 @@ int main(int argc, char **argv)
     int proj_image_w;
     int roi_top_w;
     int roi_bottom_w;
-    int roi_horizontal_offset;
+    int proj_image_horizontal_offset;
     int detector_size;
     int lane_width;
     std::string path_2features;
@@ -318,7 +315,7 @@ int main(int argc, char **argv)
     nh.param<int>(node_name+"/proj_image_w", proj_image_w, 80);
     nh.param<int>(node_name+"/roi_top_w", roi_top_w, 30);
     nh.param<int>(node_name+"/roi_bottom_w", roi_bottom_w, 20);
-    nh.param<int>(node_name+"/roi_horizontal_offset", roi_horizontal_offset, 0);
+    nh.param<int>(node_name+"/proj_image_horizontal_offset", proj_image_horizontal_offset, 0);
     nh.param<int>(node_name+"/detector_size", detector_size, 16);
     nh.param<int>(node_name+"/lane_width", lane_width, 17);
     nh.param<std::string>(node_name+"/path_2features", path_2features,
@@ -327,7 +324,7 @@ int main(int argc, char **argv)
         "/home/vena/Dropbox/lane_detection/catkin_ws/src/line_detection/src/strongClassifiers/classifier_30features.txt");
 
     cLaneDetection node(nh, cam_w, cam_h, proj_y_start, proj_image_h, proj_image_w,
-        roi_top_w, roi_bottom_w, roi_horizontal_offset, detector_size, lane_width, path_2features, path_30features);
+        roi_top_w, roi_bottom_w, proj_image_horizontal_offset, detector_size, lane_width, path_2features, path_30features);
     while(ros::ok())
     {
         ros::spinOnce();

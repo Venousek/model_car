@@ -28,7 +28,7 @@ THIS SOFTWARE IS PROVIDED BY AUDI AG AND CONTRIBUTORS “AS IS” AND ANY EXPRES
 //#define PATH_30FEATURES "/home/vena/Dropbox/lane_detection/catkin_ws/src/line_detection/src/strongClassifiers/classifier_30features.txt"
 
 
-LaneDetector::LaneDetector(int size,Point p1,Point p2, int image_h_, int image_w_, int roi_top_w_, int roi_bottom_w_, int roi_horizontal_offset_,
+LaneDetector::LaneDetector(int size,Point p1,Point p2, int image_h_, int image_w_, int roi_top_w_, int roi_bottom_w_,
     std::string path_2features, std::string path_30features) : classifier_2features(path_2features,0.5),classifier_30features(path_30features,0.5)
 {
     detectorSize = size;
@@ -40,7 +40,6 @@ LaneDetector::LaneDetector(int size,Point p1,Point p2, int image_h_, int image_w
     image_w_half = image_w/2;
     roi_top_w = roi_top_w_;
     roi_bottom_w = roi_bottom_w_;
-    roi_horizontal_offset = roi_horizontal_offset_;
 }
 
 vector<Point2d> LaneDetector::detect(Mat grayscaleImage,Mat sobeledImage,Mat groundplaneImage)
@@ -66,10 +65,10 @@ vector<Point2d> LaneDetector::detect(Mat grayscaleImage,Mat sobeledImage,Mat gro
     addWeighted(abs_grad_x,0.5,abs_grad_y,0.5,0,sobeledImage);*/
 
     vector<Point> checkContour;
-    checkContour.push_back(Point(image_w_half-(roi_bottom_w/2)+roi_horizontal_offset,image_h-1));
-    checkContour.push_back(Point(image_w_half+(roi_bottom_w/2)+roi_horizontal_offset,image_h-1));
-    checkContour.push_back(Point(image_w_half+(roi_top_w/2)+roi_horizontal_offset,0));
-    checkContour.push_back(Point(image_w_half-(roi_top_w/2)+roi_horizontal_offset,0));
+    checkContour.push_back(Point(image_w_half-(roi_bottom_w/2),image_h-1));
+    checkContour.push_back(Point(image_w_half+(roi_bottom_w/2),image_h-1));
+    checkContour.push_back(Point(image_w_half+(roi_top_w/2),0));
+    checkContour.push_back(Point(image_w_half-(roi_top_w/2),0));
 
 
     for(int i = foe_1.y;i < foe_2.y-detectorSize;i+=6)

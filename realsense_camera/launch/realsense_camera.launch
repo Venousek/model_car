@@ -21,7 +21,7 @@
     x, y = 320.000000, 240.000000
     -->
     
-    <arg name="realsense_camera_type" default="Intel(R) RealSense(TM) Camera S" />
+    <arg name="realsense_camera_type" default="Intel(R) RealSense(TM) 3D Camer" />
     
     <arg name="camera" default="camera" />
     <arg name="rgb_frame_id" default="$(arg camera)_rgb_optical_frame" />
