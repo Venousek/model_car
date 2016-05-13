@@ -34,6 +34,7 @@ THIS SOFTWARE IS PROVIDED BY AUDI AG AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR
 
 #include <ros/ros.h>
 #include <sensor_msgs/Image.h>
+#include <std_msgs/Float32.h>
 #include <sensor_msgs/image_encodings.h>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -60,7 +61,8 @@ class cLaneDetection
         ros::Subscriber read_images_;
 
         // publishers
-        ros::Publisher publish_images_;
+        ros::Publisher publish_images;
+        ros::Publisher publish_parabola;;
 
         double m_LastValue;
 

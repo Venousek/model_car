@@ -34,7 +34,9 @@ cLaneDetection::cLaneDetection(ros::NodeHandle nh, int cam_w_, int cam_h_, int p
     read_images_ = nh.subscribe(nh_.resolveName("/camera/ground_image_ipmapped"), 1,&cLaneDetection::ProcessInput,this);
 
 
-    publish_images_ = nh.advertise<sensor_msgs::Image>("/camera/transformed_image", MY_ROS_QUEUE_SIZE);
+    publish_images = nh.advertise<sensor_msgs::Image>("/lane_model/lane_model_image", MY_ROS_QUEUE_SIZE);
+
+    publish_parabola = nh.advertise<std_msgs::Float32>("/lane_model/parabola", MY_ROS_QUEUE_SIZE);
 }
 
 cLaneDetection::~cLaneDetection()
@@ -172,7 +174,7 @@ void cLaneDetection::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
 
         // ros::Time end = ros::Time::now();
         // ROS_ERROR("time: %d", ((end.nsec-begin.nsec)/1000000)); 
-        #ifdef PAINT_OUTPUT
+        
             //---------------------- DEBUG OUTPUT LANE MODEL---------------------------------//
             int carOffset = 50;
             Mat laneModelDrawing(proj_image_h+carOffset,proj_image_w,CV_8UC3,Scalar(0,0,0));
@@ -180,10 +182,21 @@ void cLaneDetection::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
             cvtColor(transformedImageCopy,transformedImageCopy,CV_GRAY2BGR);
             transformedImageCopy.copyTo(laneModelDrawing(Rect(0,carOffset,transformedImageCopy.cols,transformedImageCopy.rows)));
             model.getDebugImage(laneModelDrawing);
+        #ifdef PAINT_OUTPUT
             cv::imshow("Lane model", laneModelDrawing);
              
            //---------------------- END DEBUG OUTPUT LANE MODEL------------------------------//
         #endif
+
+        cv_bridge::CvImage out_msg;
+        out_msg.header   = msg->header; // Same timestamp and tf frame as input image
+        out_msg.encoding = sensor_msgs::image_encodings::MONO8; // Or whatever
+        out_msg.image    = laneModelDrawing; // Your cv::Mat
+        publish_images.publish(out_msg.toImageMsg());
+
+        std_msgs::Float32 parabola;
+        parabola.data = model.getHistoryParabola().at(0);
+        publish_parabola.publish(parabola);
 
     } 
     catch (const cv_bridge::Exception& e)
