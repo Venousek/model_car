@@ -6,7 +6,7 @@ project(line_detection)
 ## is used, also find other catkin packages
 find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED) 
-find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs cv_bridge pcl_ros)
+find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs cv_bridge pcl_ros camera_info_manager image_transport)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)

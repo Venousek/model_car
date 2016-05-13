@@ -39,6 +39,8 @@ THIS SOFTWARE IS PROVIDED BY AUDI AG AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <image_transport/image_transport.h>
+#include <camera_info_manager/camera_info_manager.h>
 using namespace std;
 using namespace cv;
 
@@ -107,6 +109,8 @@ class cLaneDetection
         int roi_bottom_w;
         int roi_horizontal_offset;
 
+        
+
 
 
         LaneDetector detector;
@@ -136,6 +140,7 @@ class cLaneDetection
 
     	*/
         void ProcessInput(const sensor_msgs::Image::ConstPtr& msg);
+        void pubRealSenseRGBImageMsg(cv::Mat& rgb_mat);
 };
 
 #endif 
