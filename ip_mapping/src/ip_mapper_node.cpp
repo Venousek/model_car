@@ -33,7 +33,7 @@ using namespace cv;
 #include "IPMapper.h"
 #include <image_transport/image_transport.h>
 #define PROJECTED_IMAGE_HEIGTH 250
-#define PAINT_OUTPUT
+//#define PAINT_OUTPUT
 
 class online_IPM
 {

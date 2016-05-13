@@ -4,7 +4,7 @@
 using namespace std;
 using namespace cv;
 
-#define PAINT_OUTPUT
+//#define PAINT_OUTPUT
 
 static const uint32_t MY_ROS_QUEUE_SIZE = 1000;
 
