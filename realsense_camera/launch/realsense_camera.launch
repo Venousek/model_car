@@ -22,7 +22,8 @@
     -->
     
     <arg name="realsense_camera_type" default="Intel(R) RealSense(TM) 3D Camer" />
-    
+    <!--remap from="camera/rgb/image_raw" to="app/camera/rgb/image_raw" /-->
+
     <arg name="camera" default="camera" />
     <arg name="rgb_frame_id" default="$(arg camera)_rgb_optical_frame" />
     <arg name="depth_frame_id" default="$(arg camera)_depth_optical_frame" />

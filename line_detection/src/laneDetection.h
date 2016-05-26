@@ -40,6 +40,7 @@ THIS SOFTWARE IS PROVIDED BY AUDI AG AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <image_transport/image_transport.h>
+//#include <compressed_image_transport/compressed_publisher.h>
 #include <camera_info_manager/camera_info_manager.h>
 using namespace std;
 using namespace cv;
@@ -64,7 +65,8 @@ class cLaneDetection
 
         // publishers
         ros::Publisher publish_images;
-        ros::Publisher publish_curvature;;
+        ros::Publisher publish_curvature;
+        //compressed_image_transport::CompressedPublisher compressed_pub;
 
         double m_LastValue;
 
@@ -138,7 +140,11 @@ class cLaneDetection
 
     	*/
         void ProcessInput(const sensor_msgs::Image::ConstPtr& msg);
+        
         void pubRealSenseRGBImageMsg(cv::Mat& rgb_mat);
+
+        //void pubCompressedImageMsg(cv::Mat& rgb_mat);
+        //void pubCompressedImageMsgIn(sensor_msgs::CompressedImage toPublish);
 };
 
 #endif 

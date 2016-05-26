@@ -9,7 +9,7 @@ find_package(catkin REQUIRED COMPONENTS
   dynamic_reconfigure
   image_transport
   message_generation
-  roscpp 
+  roscpp
   roslib
   std_msgs
   tf
