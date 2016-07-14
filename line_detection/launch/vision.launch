@@ -16,8 +16,8 @@
     <param name="autosize" value="true" />
   </node>-->
 
-  <param name="cam_w"                     type="int"    value="1280"/>  
-  <param name="cam_h"                     type="int"    value="720"/>
+  <param name="cam_w"                     type="int"    value="640"/>  
+  <param name="cam_h"                     type="int"    value="480"/>
 
   <!--node name="openni2_node" pkg="openni2_launch" type="openni2_launch" /-->
 
@@ -28,26 +28,26 @@
   	<param name="proj_y_start"            	    type="int" 		value="40"/>
   	<param name="proj_image_h"            	    type="int" 		value="80"/>
   	<param name="proj_image_w"            	    type="int" 		value="100"/>
-  	<param name="proj_image_horizontal_offset"  type="int"    value="10"/>
-    <param name="roi_top_w"            		      type="int" 		value="50"/>
+  	<param name="proj_image_horizontal_offset"  type="int"    	value="10"/>
+    	<param name="roi_top_w"            	    type="int" 		value="50"/>
   	<param name="roi_bottom_w"            	    type="int" 		value="50"/>    
-  	<param name="detector_size"         	      type="int" 		value="16"/>
-    <param name="lane_width"                    type="int"    value="35"/>
+  	<param name="detector_size"         	    type="int" 		value="16"/>
+    	<param name="lane_width"                    type="int"    	value="45"/>
   	<param name="path_2features"         	      type="string" value="$(find line_detection)/src/strongClassifiers/classifier_2features.txt"/>
   	<param name="path_30features"         	    type="string" value="$(find line_detection)/src/strongClassifiers/classifier_30features.txt"/>
   </node>
 
   <param name="camera_name"     type="string"   value="/camera/rgb/image_raw"/>
  
-  <param name="f_u"             type="double"   value="896.362732"/>
+  <!--<param name="f_u"             type="double"   value="896.362732"/>
   <param name="f_v"             type="double"   value="912.085388"/>
   <param name="c_u"             type="double"   value="628.975436"/>
-  <param name="c_v"             type="double"   value="405.070026"/>
-  <!--param name="f_u"             type="double"   value="624.650635"/>
-  <param name="f_v"             type="double"   value="626.987244"/>
-  <param name="c_u"             type="double"   value="309.703230"/>
-  <param name="c_v"             type="double"   value="231.473613"/-->
-  <param name="deg"             type="double"   value="3"/>
+  <param name="c_v"             type="double"   value="405.070026"/>-->
+  <param name="f_u"             type="double"   value="648.326172"/>
+  <param name="f_v"             type="double"   value="659.470825"/>
+  <param name="c_u"             type="double"   value="264.855530"/>
+  <param name="c_v"             type="double"   value="261.701891"/>
+  <param name="deg"             type="double"   value="4"/>
   <param name="cam_height"      type="double"   value="18"/>
   <node name="ip_mapper_node" pkg="ip_mapping" type="ip_mapper_node" />
 

@@ -21,7 +21,7 @@ cLaneDetection::cLaneDetection(ros::NodeHandle nh, int cam_w_, int cam_h_, int p
         int detector_size, int lane_width,
         std::string path_2features, std::string path_30features)
     : nh_(nh), priv_nh_("~"),detector(detector_size,Point(0,0),Point(proj_image_w_,proj_image_h_),
-        proj_image_h_,proj_image_w_,roi_top_w_,roi_bottom_w_,path_2features, path_30features),model(true, proj_image_w_/2, lane_width)//,compressed_pub()
+        proj_image_h_,proj_image_w_,roi_top_w_,roi_bottom_w_,path_2features, path_30features),model(true, proj_image_w_/2, lane_width)
 {
     //m_Busy = false;
     //priv_nh_.param<std::string>("PATH_2FEATURES", PATH_2FEATURES, "");
@@ -45,9 +45,8 @@ cLaneDetection::cLaneDetection(ros::NodeHandle nh, int cam_w_, int cam_h_, int p
     publish_curvature = nh.advertise<std_msgs::Float32>("/lane_model/curvature", MY_ROS_QUEUE_SIZE);
 
     image_transport::ImageTransport image_transport(nh);
-    realsense_rgb_image_pub = image_transport.advertiseCamera("/lane_model/lane_model_image", 1);
     
-    //compressed_pub.advertise(nh, "/lane_model/lane_model_image/compressed", 1);
+    realsense_rgb_image_pub = image_transport.advertiseCamera("/lane_model/lane_model_image", 1);
 
     if (!rgb_camera_info)
     {
@@ -206,7 +205,6 @@ void cLaneDetection::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
            //---------------------- END DEBUG OUTPUT LANE MODEL------------------------------//
         #endif
 
-        //pubCompressedImageMsg(laneModelDrawing);
         pubRealSenseRGBImageMsg(laneModelDrawing);
 
         /*cv_bridge::CvImage out_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", laneModelDrawing);
@@ -239,62 +237,6 @@ void cLaneDetection::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
 
 }
 
-
-// void cLaneDetection::pubCompressedImageMsg(cv::Mat& rgb_mat)
-// {
-    
-
-//     /*rgb_img->header.seq = head_sequence_id;
-//     rgb_img->header.stamp = head_time_stamp;
-//     rgb_img->header.frame_id = rgb_frame_id;
-
-//     rgb_img->width = rgb_mat.cols;
-//     rgb_img->height = rgb_mat.rows;
-
-//     rgb_img->encoding = sensor_msgs::image_encodings::BGR8;
-//     rgb_img->is_bigendian = 0;
-
-//     int step = sizeof(unsigned char) * 3 * rgb_img->width;
-//     int size = step * rgb_img->height;
-//     rgb_img->step = step;
-//     rgb_img->data.resize(size);
-//     memcpy(&(rgb_img->data[0]), rgb_mat.data, size);*/
-
-//     /*rgb_camera_info->header.frame_id = rgb_frame_id;
-//     rgb_camera_info->header.stamp = head_time_stamp;
-//     rgb_camera_info->header.seq = head_sequence_id;*/
-
-//     //rgb_img.data = rgb_mat;
-
-
-//     cv_bridge::CvImage out_msg;
-//     out_msg.header   = std_msgs::Header(); // Same timestamp and tf frame as input image
-//     out_msg.encoding = sensor_msgs::image_encodings::BGR8; // Or whatever
-//     out_msg.image    = rgb_mat; // Your cv::Mat
-
-//     sensor_msgs::ImagePtr rgb_img = out_msg.toImageMsg();
-//     compressed_pub.publish(*rgb_img, pubCompressedImageMsgIn);
-
-
-//     //save rgb img
-// //  static int count = 0;
-// //  count++;
-// //  if(count > 0)
-// //  {
-// //      struct timeval save_time;
-// //        gettimeofday( &save_time, NULL );
-// //        char save_name[256];
-// //        sprintf(save_name, "~/temp/realsense_rgb_%d.jpg", (int)save_time.tv_sec);
-// //        printf("\nsave realsense rgb img: %s\n", save_name);
-// //      cv::imwrite(save_name, rgb_mat);
-// //      count = 0;
-// //  }
-// }
-
-/*void cLaneDetection::pubCompressedImageMsgIn(sensor_msgs::CompressedImage toPublish)
-{
-    ROS_ERROR("publishing!");
-}*/
 
 void cLaneDetection::pubRealSenseRGBImageMsg(cv::Mat& rgb_mat)
 {
