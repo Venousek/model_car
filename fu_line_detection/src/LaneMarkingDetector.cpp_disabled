@@ -1,0 +1,64 @@
+#include "LaneMarkingDetector.h"
+
+#include "debug.h"
+#include "services.h"
+#include "management/config/config.h"
+#include "modules/cognition/cognition.h"
+/*
+REGISTER_MODULE(Cognition, LaneMarkingDetector, true, "Detects lane markings' center points");
+
+namespace {
+
+	// debugs
+	auto dbgLanesLocal = REGISTER_DEBUG("cognition.vision.lanes.local", DRAWING_RELATIVE, "???" );
+
+}
+
+void LaneMarkingDetector::init() {
+	services.getEvents().registerForEvent(EVT_CONFIGURATION_LOADED, this);
+	eventCallback(EVT_CONFIGURATION_LOADED, &services.getConfig());
+}*/
+/*
+void LaneMarkingDetector::detect(std::vector<std::vector<EdgePoint>> markingsList) {
+	getLaneMarkings().clear();
+	extractFromScanlines(markingsList);
+
+	DRAWDEBUG( dbgLanesLocal, {
+		for (Point<Meter> laneMarking : getLaneMarkings().get()) {
+			SETCOLORGRAY;
+			RECTANGLEFILLED(
+				Centimeter(laneMarking.getX()).value(),
+				Centimeter(laneMarking.getY()).value(),
+				2,
+				2
+			);
+		}
+	});
+}*/
+
+/*void LaneMarkingDetector::eventCallback(EventType eventType, void* data) {
+	// TODO: make this configurable.
+	Meter threshold(6 * centimeters);
+	squaredThreshold = threshold * threshold;
+}*/
+
+void LaneMarkingDetector::extractFromScanlines(const std::vector<std::vector<EdgePoint>>& scanlines) {
+	for (const auto& scanline : scanlines) extractFromScanline(scanline);
+}
+
+void LaneMarkingDetector::extractFromScanline(const std::vector<EdgePoint>& scanline) {
+	if (scanline.empty()) return;
+	for (
+		auto edgePosition = scanline.begin(), nextEdgePosition = edgePosition + 1;
+		nextEdgePosition != scanline.end();
+		edgePosition = nextEdgePosition, ++nextEdgePosition
+	) {
+		if (edgePosition->isPositive() and not nextEdgePosition->isPositive()) {
+			Point<Meter> candidateStartEdge = edgePosition->getRelPos();
+			Point<Meter> candidateEndEdge = nextEdgePosition->getRelPos();
+			if ((candidateStartEdge - candidateEndEdge).squaredMagnitude() < squaredThreshold) {
+				getLaneMarkings().push(center(candidateStartEdge, candidateEndEdge));
+			}
+		}
+	}
+}

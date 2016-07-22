@@ -1,0 +1,34 @@
+<launch>
+
+  <param name="cam_w"                     type="int"    value="640"/>  
+  <param name="cam_h"                     type="int"    value="480"/>
+
+
+  <!--remap from="lane_model/lane_model_image" to="app/camera/rgb/image_raw" /-->
+  <!--remap from="camera/ground_image_ipmapped" to="camera/rgb/image_raw" /-->
+
+
+  <node name="line_detection_fu_node" pkg="line_detection_fu" type="line_detection_fu_node" >
+  	
+  	<param name="proj_y_start"            	    type="int" 		value="40"/>
+  	<param name="proj_image_h"            	    type="int" 		value="80"/>
+  	<param name="proj_image_w"            	    type="int" 		value="100"/>
+  	<param name="proj_image_horizontal_offset"  type="int"    	value="10"/>
+    	<param name="roi_top_w"            	    type="int" 		value="50"/>
+  	<param name="roi_bottom_w"            	    type="int" 		value="50"/>
+  </node>
+
+ 
+  <!--<param name="f_u"             type="double"   value="896.362732"/>
+  <param name="f_v"             type="double"   value="912.085388"/>
+  <param name="c_u"             type="double"   value="628.975436"/>
+  <param name="c_v"             type="double"   value="405.070026"/>-->
+  <!--param name="f_u"             type="double"   value="648.326172"/>
+  <param name="f_v"             type="double"   value="659.470825"/>
+  <param name="c_u"             type="double"   value="264.855530"/>
+  <param name="c_v"             type="double"   value="261.701891"/>
+  <param name="deg"             type="double"   value="4"/>
+  <param name="cam_height"      type="double"   value="18"/>
+  <node name="ip_mapper_node" pkg="ip_mapping" type="ip_mapper_node" /-->
+
+</launch>

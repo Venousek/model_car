@@ -1,0 +1,33 @@
+#ifndef LANEMARKINGDETECTOR_H_
+#define LANEMARKINGDETECTOR_H_
+
+#include "ModuleFramework/Module.h"
+#include "utils/system/events.h"
+#include "representations/cognition/vision/Edges.h"
+#include "representations/cognition/vision/LaneMarkings.h"
+
+BEGIN_DECLARE_MODULE(LaneMarkingDetector)
+	REQUIRE(Edges)
+	PROVIDE(LaneMarkings)
+END_DECLARE_MODULE(LaneMarkingDetector)
+
+class LaneMarkingDetector :
+	public LaneMarkingDetectorBase,
+	public EventCallback
+{
+public:
+	LaneMarkingDetector() = default;
+	virtual ~LaneMarkingDetector() override = default;
+
+	virtual void init() override;
+	virtual void execute() override;
+	virtual void eventCallback(EventType eventType, void* data) override;
+
+	void extractFromScanlines(const std::vector<std::vector<EdgePoint>>& scanlines);
+	void extractFromScanline(const std::vector<EdgePoint>& scanline);
+
+private:
+	decltype(Meter() * Meter()) squaredThreshold;
+};
+
+#endif /* LANEMARKINGDETECTOR_H_ */
