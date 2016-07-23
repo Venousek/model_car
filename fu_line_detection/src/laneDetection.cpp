@@ -9,6 +9,8 @@ using namespace std;
 
 static const uint32_t MY_ROS_QUEUE_SIZE = 1000;
 
+#define PI 3.14159265
+
 //image_transport::CameraPublisher realsense_rgb_image_pub;
 
 //msgs head
@@ -67,6 +69,7 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, i
     pointsRight          = std::vector<FuPoint<int>>();
 
     lanePoly             = NewtonPolynomial();
+    lanePolynomial       = LanePolynomial();
 
     iterationsRansac     = 0;
     proportionThreshould = 0;
@@ -153,10 +156,10 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
     maxXDefaultRoi = cfgMaxXDefaultRoi->get() * meters;
     maxXPolyRoi    = cfgMaxXPolyRoi->get() * meters;*/
 
-    /*interestDistancePoly = (cfgPolyRoiWidth->get() / 2) * meters;
-    interestDistanceDefault = (cfgDefaultRoiWidth->get() / 2) * meters;
+    interestDistancePoly = 10;//(cfgPolyRoiWidth->get() / 2) * meters;
+    interestDistanceDefault = 10;//(cfgDefaultRoiWidth->get() / 2) * meters;
 
-    iterationsRansac = cfgIterRansac->get();
+   /* iterationsRansac = cfgIterRansac->get();
     proportionThreshould = cfgThreshould->get();
 
     maxDistance    = cfgMaxDistance->get() * meters;*/
@@ -190,9 +193,9 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
     // start actual execution
     buildLaneMarkingsLists(laneMarkings);
 
-    //ransac();
+    ransac();
 
-    //detectLane(0.7);
+    detectLane(7);
 /*
     // Debugging
 
@@ -767,12 +770,12 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
  * @param p2    The second point
  * @return      The horizontal distance between the two points
  */
-/*Meter LaneDetector::horizDistance(Point<Meter> &p1, Point<Meter> &p2) {
-    double y1 = p1.y.value();
-    double y2 = p2.y.value();
+int cLaneDetectionFu::horizDistance(FuPoint<int> &p1, FuPoint<int> &p2) {
+    double y1 = p1.getY();
+    double y2 = p2.getY();
 
-    return std::abs(y1 - y2) * meters;
-}*/
+    return std::abs(y1 - y2);
+}
 
 /**
  * Calculates the gradient of a polynomial at a given x value. The used formula
@@ -789,11 +792,11 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
  * @param coeffs    The coefficients under usage of the newton basis
  * @return          The gradient of the polynomial at x
  */
-/*double LaneDetector::gradient(double x, std::vector<Point<Meter>> &points,
+double cLaneDetectionFu::gradient(double x, std::vector<FuPoint<int>> &points,
         std::vector<double> coeffs) {
-    return 2 * coeffs[2] * x + coeffs[1] - coeffs[2] * points[1].x.value()
-            - coeffs[2] * points[0].x.value();
-}*/
+    return 2 * coeffs[2] * x + coeffs[1] - coeffs[2] * points[1].getX()
+            - coeffs[2] * points[0].getX();
+}
 
 /**
  * Calculates the x value of the point where the normal of the tangent of a
@@ -821,14 +824,14 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
  * @param coeffs    The coeffs of the second polynomial with newton basis
  * @return          The x value of the intersection point of normal and 2nd poly
  */
-/*double LaneDetector::intersection(Point<double> &p, double &m,
-        std::vector<Point<Meter>> &points, std::vector<double> &coeffs) {
+double cLaneDetectionFu::intersection(FuPoint<double> &p, double &m,
+        std::vector<FuPoint<int>> &points, std::vector<double> &coeffs) {
     double a = coeffs[2];
-    double b = coeffs[1] - (coeffs[2] * points[1].x.value())
-            - (coeffs[2] * points[0].x.value()) + (1.0 / m);
-    double c = coeffs[0] - (coeffs[1] * points[0].x.value())
-            + (coeffs[2] * points[0].x.value() * points[1].x.value())
-            - p.y - (p.x / m);
+    double b = coeffs[1] - (coeffs[2] * points[1].getX())
+            - (coeffs[2] * points[0].getX()) + (1.0 / m);
+    double c = coeffs[0] - (coeffs[1] * points[0].getX())
+            + (coeffs[2] * points[0].getX() * points[1].getX())
+            - p.getY() - (p.getX() / m);
 
     double dis = std::pow(b, 2) - (4 * a * c);
     double x1 = 0;
@@ -846,7 +849,7 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
     }
 
     return fmax(x1, x2);
-}*/
+}
 
 /**
  * Calculates the gradient of a second polynomial at the point, at which the
@@ -862,15 +865,15 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
  * @param m1        The gradient of the first poly at x
  * @return          The gradient of the second poly at the intersection point
  */
-/*double LaneDetector::nextGradient(double x, NewtonPolynomial &poly1,
-        std::vector<Point<Meter>> &points1, std::vector<Point<Meter>> &points2,
+double cLaneDetectionFu::nextGradient(double x, NewtonPolynomial &poly1,
+        std::vector<FuPoint<int>> &points1, std::vector<FuPoint<int>> &points2,
         std::vector<double> coeffs1, std::vector<double> coeffs2, double m1) {
 
-    Point<double> p = Point<double>(x, poly1.at(x));
+    FuPoint<double> p = FuPoint<double>(x, poly1.at(x));
     double x2 = intersection(p, m1, points2, coeffs2);
 
     return gradient(x2, points2, coeffs2);
-}*/
+}
 
 /**
  * Check two gradients for similarity. Return true if the difference in degree
@@ -880,7 +883,7 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
  * @param m2    The second gradient
  * @return      True, if the diffenence between the gradients is less than 10°
  */
-/*bool LaneDetector::gradientsSimilar(double &m1, double &m2) {
+bool cLaneDetectionFu::gradientsSimilar(double &m1, double &m2) {
     double a1 = atan(m1) * 180 / PI;
     double a2 = atan(m2) * 180 / PI;
 
@@ -890,13 +893,13 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
     else {
         return false;
     }
-}*/
+}
 
 /**
  * Finds the position of the polynomial with the highest proportion.
  * @return The position of the best polynomial
  */
-/*ePosition LaneDetector::maxProportion() {
+ePosition cLaneDetectionFu::maxProportion() {
     ePosition maxPos = LEFT;
     double maxVal = bestPolyLeft.second;
 
@@ -910,7 +913,7 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
     }
 
     return maxPos;
-}*/
+}
 
 /**
  * Create the lane polynomial starting from the detected polynomial of the
@@ -921,20 +924,20 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
  *
  * @param position  The position of the detected polynomial used as reference
  */
-/*void LaneDetector::createLanePoly(ePosition position) {
+void cLaneDetectionFu::createLanePoly(ePosition position) {
     lanePoly.clear();
 
     double x1 = 0.05;
     double x2 = 0.4;
     double x3 = 1.0;
 
-    Point<double> pointRight1;
-    Point<double> pointRight2;
-    Point<double> pointRight3;
+    FuPoint<double> pointRight1;
+    FuPoint<double> pointRight2;
+    FuPoint<double> pointRight3;
 
-    Point<double> pointLeft1;
-    Point<double> pointLeft2;
-    Point<double> pointLeft3;
+    FuPoint<double> pointLeft1;
+    FuPoint<double> pointLeft2;
+    FuPoint<double> pointLeft3;
 
     double m1 = 0;
     double m2 = 0;
@@ -943,7 +946,7 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
     double dRight = 0;
 
     NewtonPolynomial usedPoly;
-*/
+
     /*
      * Depending on the sign of the gradient of the poly at the different
      * x-values and depending on which position we are, we have to add or
@@ -954,38 +957,38 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
      * separately using the trigonometric ratios of right triangles and the fact
      * that arctan of some gradient equals its angle to the x-axis in degree.
      */
-    /*if (position == LEFT) {
+    if (position == LEFT) {
         usedPoly = polyLeft;
         m1 = gradient(x1, pointsLeft, usedPoly.getCoefficients());
         m2 = gradient(x2, pointsLeft, usedPoly.getCoefficients());
         m3 = gradient(x3, pointsLeft, usedPoly.getCoefficients());
 
-        dRight = defaultYLeft.value();
+        dRight = defaultYLeft;
 
         if (m1 > 0) {
-            pointRight1 = Point<double>(x1 + dRight * cos(atan(-1 / m1)),
+            pointRight1 = FuPoint<double>(x1 + dRight * cos(atan(-1 / m1)),
                     usedPoly.at(x1) + dRight * sin(atan(-1 / m1)));
         }
         else {
-            pointRight1 = Point<double>(x1 - dRight * cos(atan(-1 / m1)),
+            pointRight1 = FuPoint<double>(x1 - dRight * cos(atan(-1 / m1)),
                     usedPoly.at(x1) - dRight * sin(atan(-1 / m1)));
         }
 
         if (m2 > 0) {
-            pointRight2 = Point<double>(x2 + dRight * cos(atan(-1 / m2)),
+            pointRight2 = FuPoint<double>(x2 + dRight * cos(atan(-1 / m2)),
                     usedPoly.at(x2) + dRight * sin(atan(-1 / m2)));
         }
         else {
-            pointRight2 = Point<double>(x2 - dRight * cos(atan(-1 / m2)),
+            pointRight2 = FuPoint<double>(x2 - dRight * cos(atan(-1 / m2)),
                     usedPoly.at(x2) - dRight * sin(atan(-1 / m2)));
         }
 
         if (m3 > 0) {
-            pointRight3 = Point<double>(x3 + dRight * cos(atan(-1 / m3)),
+            pointRight3 = FuPoint<double>(x3 + dRight * cos(atan(-1 / m3)),
                     usedPoly.at(x3) + dRight * sin(atan(-1 / m3)));
         }
         else {
-            pointRight3 = Point<double>(x3 - dRight * cos(atan(-1 / m3)),
+            pointRight3 = FuPoint<double>(x3 - dRight * cos(atan(-1 / m3)),
                     usedPoly.at(x3) - dRight * sin(atan(-1 / m3)));
         }
     }
@@ -995,32 +998,32 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
         m2 = gradient(x2, pointsCenter, usedPoly.getCoefficients());
         m3 = gradient(x3, pointsCenter, usedPoly.getCoefficients());
 
-        dRight = defaultYCenter.value();
+        dRight = defaultYCenter;
 
         if (m1 > 0) {
-            pointRight1 = Point<double>(x1 + dRight * cos(atan(-1 / m1)),
+            pointRight1 = FuPoint<double>(x1 + dRight * cos(atan(-1 / m1)),
                     usedPoly.at(x1) + dRight * sin(atan(-1 / m1)));
         }
         else {
-            pointRight1 = Point<double>(x1 - dRight * cos(atan(-1 / m1)),
+            pointRight1 = FuPoint<double>(x1 - dRight * cos(atan(-1 / m1)),
                     usedPoly.at(x1) - dRight * sin(atan(-1 / m1)));
         }
 
         if (m2 > 0) {
-            pointRight2 = Point<double>(x2 + dRight * cos(atan(-1 / m2)),
+            pointRight2 = FuPoint<double>(x2 + dRight * cos(atan(-1 / m2)),
                     usedPoly.at(x2) + dRight * sin(atan(-1 / m2)));
         }
         else {
-            pointRight2 = Point<double>(x2 - dRight * cos(atan(-1 / m2)),
+            pointRight2 = FuPoint<double>(x2 - dRight * cos(atan(-1 / m2)),
                     usedPoly.at(x2) - dRight * sin(atan(-1 / m2)));
         }
 
         if (m3 > 0) {
-            pointRight3 = Point<double>(x3 + dRight * cos(atan(-1 / m3)),
+            pointRight3 = FuPoint<double>(x3 + dRight * cos(atan(-1 / m3)),
                     usedPoly.at(x3) + dRight * sin(atan(-1 / m3)));
         }
         else {
-            pointRight3 = Point<double>(x3 - dRight * cos(atan(-1 / m3)),
+            pointRight3 = FuPoint<double>(x3 - dRight * cos(atan(-1 / m3)),
                     usedPoly.at(x3) - dRight * sin(atan(-1 / m3)));
         }
     }
@@ -1030,32 +1033,32 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
         m2 = gradient(x2, pointsRight, usedPoly.getCoefficients());
         m3 = gradient(x3, pointsRight, usedPoly.getCoefficients());
 
-        dRight = defaultYCenter.value();
+        dRight = defaultYCenter;
 
         if (m1 > 0) {
-            pointRight1 = Point<double>(x1 - dRight * cos(atan(-1 / m1)),
+            pointRight1 = FuPoint<double>(x1 - dRight * cos(atan(-1 / m1)),
                     usedPoly.at(x1) - dRight * sin(atan(-1 / m1)));
         }
         else {
-            pointRight1 = Point<double>(x1 + dRight * cos(atan(-1 / m1)),
+            pointRight1 = FuPoint<double>(x1 + dRight * cos(atan(-1 / m1)),
                     usedPoly.at(x1) + dRight * sin(atan(-1 / m1)));
         }
 
         if (m2 > 0) {
-            pointRight2 = Point<double>(x2 - dRight * cos(atan(-1 / m2)),
+            pointRight2 = FuPoint<double>(x2 - dRight * cos(atan(-1 / m2)),
                     usedPoly.at(x2) - dRight * sin(atan(-1 / m2)));
         }
         else {
-            pointRight2 = Point<double>(x2 + dRight * cos(atan(-1 / m2)),
+            pointRight2 = FuPoint<double>(x2 + dRight * cos(atan(-1 / m2)),
                     usedPoly.at(x2) + dRight * sin(atan(-1 / m2)));
         }
 
         if (m3 > 0) {
-            pointRight3 = Point<double>(x3 - dRight * cos(atan(-1 / m3)),
+            pointRight3 = FuPoint<double>(x3 - dRight * cos(atan(-1 / m3)),
                     usedPoly.at(x3) - dRight * sin(atan(-1 / m3)));
         }
         else {
-            pointRight3 = Point<double>(x3 + dRight * cos(atan(-1 / m3)),
+            pointRight3 = FuPoint<double>(x3 + dRight * cos(atan(-1 / m3)),
                     usedPoly.at(x3) + dRight * sin(atan(-1 / m3)));
         }
     }
@@ -1065,9 +1068,9 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
     lanePoly.addData(pointRight2);
     lanePoly.addData(pointRight3);
 
-    getLanePolynomial().setLanePoly(lanePoly);
-    getLanePolynomial().setDetected();
-}*/
+    lanePolynomial.setLanePoly(lanePoly);
+    lanePolynomial.setDetected();
+}
 
 /**
  * Decide, which of the detected polynomials (if there are any) should be used
@@ -1075,7 +1078,7 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
  *
  * @param startX    The x-value, starting from which we compare the detected polys
  */
-/*void LaneDetector::detectLane(double startX) {
+void cLaneDetectionFu::detectLane(int startX) {
     if (polyDetectedLeft && !polyDetectedCenter && !polyDetectedRight) {
         createLanePoly(LEFT);
     }
@@ -1193,9 +1196,9 @@ bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
     else if (!polyDetectedLeft && !polyDetectedCenter && !polyDetectedRight) {
         lanePoly.clear();
 
-        getLanePolynomial().setNotDetected();
+        lanePolynomial.setNotDetected();
     }
-}*/
+}
 
 /**
  * Starts the RANSAC algorithm for detecting each of the three lane marking
@@ -1356,8 +1359,7 @@ bool cLaneDetectionFu::ransacInternal(ePosition position,
 
         if (count1 == 0 || count2 == 0 || count3 == 0) {
             poly.clear();
-            /*DEBUG_TEXT(dbgMessages,
-                    "Poly had no supporters in one of the regions");*/
+            //DEBUG_TEXT(dbgMessages, "Poly had no supporters in one of the regions");
             continue;
         }
 
@@ -1368,8 +1370,7 @@ bool cLaneDetectionFu::ransacInternal(ePosition position,
 
         if (proportion < proportionThreshould) {
             poly.clear();
-            /*DEBUG_TEXT(dbgMessages,
-                    "Poly proportion was smaller than threshold");*/
+            //DEBUG_TEXT(dbgMessages, "Poly proportion was smaller than threshold");
             continue;
         }
 
@@ -1399,7 +1400,7 @@ bool cLaneDetectionFu::ransacInternal(ePosition position,
 /**
  * Method for drawing the default lines in furemote
  */
-/*void LaneDetector::drawDefaultLines(
+/*void cLaneDetectionFu::drawDefaultLines(
         std::shared_ptr<DebuggingOption<DRAWING_RELATIVE>> debugTarget,
         int r, int g, int b) {
     // left line
@@ -1427,7 +1428,7 @@ bool cLaneDetectionFu::ransacInternal(ePosition position,
 /**
  * Method for drawing the ROIs around the default lines
  */
-/*void LaneDetector::drawDefaultRois(
+/*void cLaneDetectionFu::drawDefaultRois(
         std::shared_ptr<DebuggingOption<DRAWING_RELATIVE>> debugTarget,
         int r, int g, int b) {
     // left roi
@@ -1497,7 +1498,7 @@ bool cLaneDetectionFu::ransacInternal(ePosition position,
 /**
  * Method for drawing a detected polynomial
  */
-/*void LaneDetector::drawPoly(
+/*void cLaneDetectionFu::drawPoly(
         std::shared_ptr<DebuggingOption<DRAWING_RELATIVE>> debugTarget,
         NewtonPolynomial& poly, int r, int g, int b) {
     std::vector<double> xCoordinates = produceXCoordinates(maxXPolyRoi);
@@ -1517,7 +1518,7 @@ bool cLaneDetectionFu::ransacInternal(ePosition position,
 /**
  * Method for drawing the ROI around a detected polynomial
  */
-/*void LaneDetector::drawPolyRoi(
+/*void cLaneDetectionFu::drawPolyRoi(
         std::shared_ptr<DebuggingOption<DRAWING_RELATIVE>> debugTarget,
         NewtonPolynomial& poly, int r, int g, int b) {
     std::vector<double> xCoordinates = produceXCoordinates(maxXPolyRoi);
@@ -1540,7 +1541,7 @@ bool cLaneDetectionFu::ransacInternal(ePosition position,
 
 }
 
-void LaneDetector::writeProportions() {
+void cLaneDetectionFu::writeProportions() {
     DRAWDEBUG(dbgProportions, {
             SETCOLORWHITE;
             TEXT(-10 * centimeters, Centimeter(defaultYLeft),
@@ -1561,7 +1562,7 @@ void LaneDetector::writeProportions() {
  * @param poly          The given polynomial
  * @return              The vector of calculated y-values.
  */
-/*std::vector<double> LaneDetector::getPolyYCoordinates(
+/*std::vector<double> cLaneDetectionFu::getPolyYCoordinates(
         std::vector<double> xCoordinates, NewtonPolynomial& poly) {
     std::vector<double> yCoordinates;
     double yValue;
@@ -1581,7 +1582,7 @@ void LaneDetector::writeProportions() {
  * @param distance  x-values smaller than this are added
  * @return          The vector of x-values
  */
-/*std::vector<double> LaneDetector::produceXCoordinates(Meter distance) {
+/*std::vector<double> cLaneDetectionFu::produceXCoordinates(Meter distance) {
     std::vector<double> xCoordinates;
     double x = minXRoi.value();
 
@@ -1596,7 +1597,7 @@ void LaneDetector::writeProportions() {
 /**
  * Method for drawing the supporters of a detected polynomial
  */
-/*void LaneDetector::drawSupporters(
+/*void cLaneDetectionFu::drawSupporters(
         std::shared_ptr<DebuggingOption<DRAWING_RELATIVE>> debugTarget,
         std::vector<Point<Meter>> supporters, int r, int g, int b) {
     DRAWDEBUG(debugTarget, {
@@ -1611,7 +1612,7 @@ void LaneDetector::writeProportions() {
 /**
  * Method for drawing the lane marking points used to detect a polynomial
  */
-/*void LaneDetector::drawLaneMarkings(
+/*void cLaneDetectionFu::drawLaneMarkings(
         std::shared_ptr<DebuggingOption<DRAWING_RELATIVE>> debugTarget,
         std::vector<Point<Meter>> laneMarkings, int r, int g, int b) {
     DRAWDEBUG(debugTarget, {
@@ -1626,7 +1627,7 @@ void LaneDetector::writeProportions() {
 /**
  * Method for drawing the points selected to interpolate the polynomial
  */
-/*void LaneDetector::drawPoints(
+/*void cLaneDetectionFu::drawPoints(
         std::shared_ptr<DebuggingOption<DRAWING_RELATIVE>> debugTarget,
         std::vector<Point<Meter>> points, int r, int g, int b) {
     DRAWDEBUG(debugTarget, {
@@ -1649,49 +1650,44 @@ void LaneDetector::writeProportions() {
 bool cLaneDetectionFu::polyValid(ePosition position, NewtonPolynomial poly,
         NewtonPolynomial prevPoly) {
 
-    /*FuPoint<int> p1 = FuPoint<int>(0.3 * meters, poly.at(0.3) * meters);
+    FuPoint<int> p1 = FuPoint<int>(3, poly.at(3));
 
-    if (horizDistanceToDefaultLine(position, p1) > 0.5 * meters) {
-        DEBUG_TEXT(dbgMessages,
-                "Poly was to far away from default line at x = 0.3");
+    if (horizDistanceToDefaultLine(position, p1) > 5) {
+        //DEBUG_TEXT(dbgMessages, "Poly was to far away from default line at x = 3");
         return false;
     }
 
-    FuPoint<int> p2 = FuPoint<int>(0.6 * meters, poly.at(0.6) * meters);
+    FuPoint<int> p2 = FuPoint<int>(6, poly.at(6));
 
-    if (horizDistanceToDefaultLine(position, p2) > 0.8 * meters) {
-        DEBUG_TEXT(dbgMessages,
-                "Poly was to far away from default line at x = 0.6");
+    if (horizDistanceToDefaultLine(position, p2) > 8) {
+        //DEBUG_TEXT(dbgMessages, "Poly was to far away from default line at x = 6");
         return false;
     }
 
-    FuPoint<int> p3 = FuPoint<int>(1.0 * meters, poly.at(1.0) * meters);
+    FuPoint<int> p3 = FuPoint<int>(10, poly.at(10));
 
-    if (horizDistanceToDefaultLine(position, p3) > 1.0 * meters) {
-        DEBUG_TEXT(dbgMessages,
-                "Poly was to far away from default line at x = 1.0");
+    if (horizDistanceToDefaultLine(position, p3) > 10) {
+        //DEBUG_TEXT(dbgMessages, "Poly was to far away from default line at x = 10");
         return false;
     }
 
     if (prevPoly.getDegree() != -1) {
-        FuPoint<int> p4 = FuPoint<int>(0.5 * meters, poly.at(0.5) * meters);
-        FuPoint<int> p5 = FuPoint<int>(0.5 * meters, prevPoly.at(0.5) * meters);
+        FuPoint<int> p4 = FuPoint<int>(5, poly.at(5));
+        FuPoint<int> p5 = FuPoint<int>(5, prevPoly.at(5));
 
-        if (horizDistance(p4, p5) > 0.05 * meters) {
-            DEBUG_TEXT(dbgMessages,
-                    "Poly was to far away from previous poly at x = 0.5");
+        if (horizDistance(p4, p5) > 1) {//0.05 * meters) {
+            //DEBUG_TEXT(dbgMessages, "Poly was to far away from previous poly at x = 0.5");
             return false;
         }
 
-        FuPoint<int> p6 = FuPoint<int>(0.3 * meters, poly.at(0.3) * meters);
-        FuPoint<int> p7 = FuPoint<int>(0.3 * meters, prevPoly.at(0.3) * meters);
+        FuPoint<int> p6 = FuPoint<int>(3, poly.at(3));
+        FuPoint<int> p7 = FuPoint<int>(3, prevPoly.at(3));
 
-        if (horizDistance(p6, p7) > 0.05 * meters) {
-            DEBUG_TEXT(dbgMessages,
-                    "Poly was to far away from previous poly at 0.3");
+        if (horizDistance(p6, p7) > 1) {//0.05 * meters) {
+            //DEBUG_TEXT(dbgMessages, "Poly was to far away from previous poly at 0.3");
             return false;
         }
-    }*/
+    }
 
     return true;
 }

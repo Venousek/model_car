@@ -53,6 +53,7 @@ THIS SOFTWARE IS PROVIDED BY AUDI AG AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR
 #include "tools/LineSegment.h"
 #include "tools/Edges.h"
 #include "tools/NewtonPolynomial.h"
+#include "tools/LanePolynomial.h"
 
 using namespace std;
 //using namespace cv;
@@ -257,6 +258,8 @@ class cLaneDetectionFu
          */
         NewtonPolynomial lanePoly;
 
+        LanePolynomial lanePolynomial;
+
         /*decltype(int() * int())*/ int squaredThreshold;
 
 
@@ -315,6 +318,25 @@ class cLaneDetectionFu
 
         bool polyValid(ePosition, NewtonPolynomial, NewtonPolynomial);
 
+        int horizDistance(FuPoint<int> &p1, FuPoint<int> &p2);
+
+        void createLanePoly(ePosition position);
+
+        void detectLane(int startX);
+
+        double gradient(double, std::vector<FuPoint<int>>&,
+                std::vector<double>);
+
+        double intersection(FuPoint<double>&, double&, std::vector<FuPoint<int>>&,
+                std::vector<double>&);
+
+        double nextGradient(double, NewtonPolynomial&,
+                std::vector<FuPoint<int>>&, std::vector<FuPoint<int>>&,
+                std::vector<double>, std::vector<double>, double);
+
+        bool gradientsSimilar(double&, double&);
+
+        ePosition maxProportion();
 };
 
 #endif 

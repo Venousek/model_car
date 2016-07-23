@@ -72,6 +72,7 @@ include_directories(include
 ## Declare a cpp library
 add_library(LaneDetectorFu   
   src/tools/NewtonPolynomial.cpp
+  src/tools/LanePolynomial.cpp
    #src/LaneDetector.cpp
    #src/StrongClassifier.cpp
    #src/WeakClassifier.cpp
