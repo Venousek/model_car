@@ -10,7 +10,7 @@
   <param name="f_v"            	type="double" 	value="626.987244"/>
   <param name="c_u"            	type="double" 	value="309.703230"/>
   <param name="c_v"            	type="double" 	value="231.473613"/>
-  <param name="deg"            	type="double" 	value="27"/>
+  <param name="deg"            	type="double" 	value="20"/>
   <param name="cam_h"         	type="double" 	value="18"/>
   </node>
 

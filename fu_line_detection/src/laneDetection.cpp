@@ -5,7 +5,7 @@
 using namespace std;
 //using namespace cv;
 
-//#define PAINT_OUTPUT
+#define PAINT_OUTPUT
 
 static const uint32_t MY_ROS_QUEUE_SIZE = 1000;
 
@@ -79,8 +79,8 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, i
     defaultYCenter = 40;
     defaultYRight = 70;
 
-    m_gradientThreshold = 10;
-    m_nonMaxWidth = 10;
+    m_gradientThreshold = 30;
+    m_nonMaxWidth = 2;
 
     //int threshold(6);
     squaredThreshold = 36;
@@ -145,7 +145,7 @@ void cLaneDetectionFu::resetSystem()
 
 void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
 {
-    ROS_INFO("Got IMG");
+    ROS_INFO("Got IMG!");
 
     // set variables to config values
     /*defaultYLeft   = cfgDefaultLeft->get() * meters;
@@ -181,21 +181,76 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
     
     cv::Mat image = cv_ptr->image.clone();
     
+    cv::Mat imgFlipped;
+
+    cv::flip(image, imgFlipped, 0);
+
+    //imgFlipped.convertTo(imgFlipped, CV_8U, 1.0/256.0);
+
+    //cv::imshow("Original IPmapped image", imgFlipped);
+    //cv::waitKey(1);
+
+
+    cv::Mat transformedImage = imgFlipped(cv::Rect((cam_w/2)-proj_image_w_half+proj_image_horizontal_offset,
+            proj_y_start,proj_image_w,proj_image_h)).clone();
+
+    cv::imshow("Cut IPmapped image", transformedImage);   
+    cv::waitKey(1);
     
 
     //scanlines -> edges (in each scanline we find maximum and minimum of kernel fn ~= where the edge is)
     //this is where we use input image!
-    vector<vector<EdgePoint>> edges = cLaneDetectionFu::scanImage(image);
+    vector<vector<EdgePoint>> edges = cLaneDetectionFu::scanImage(transformedImage);
+
+    /*ROS_ERROR_STREAM(edges.size() << " lines used to detect edges.");
+
+    for(int i=0; i<edges.size(); ++i) {
+        ROS_ERROR_STREAM(edges[i].size() << " edges in scanline.");
+        for(int j=0; j<edges[i].size(); ++j) {
+            ROS_ERROR_STREAM(edges[i][j].getImgPos() << " is edge location.");
+            ROS_ERROR_STREAM(edges[i][j].getValue() << " is edge value.");
+        }
+    }*/
+
+
+    //---------------------- DEBUG OUTPUT LANE MARKINGS ---------------------------------//
+    #ifdef PAINT_OUTPUT
+        cv::Mat transformedImagePaintable = transformedImage.clone();
+        cv::cvtColor(transformedImagePaintable,transformedImagePaintable,CV_GRAY2BGR);
+        for(int i = 0; i < (int)edges.size(); i++)
+        {
+            for(int j=0; j < edges[i].size(); j++) {
+                FuPoint<int> edge = edges[i][j].getImgPos();
+                cv::Point edgeLoc = cv::Point(edge.getY(), edge.getX());
+                cv::circle(transformedImagePaintable,edgeLoc,1,cv::Scalar(0,0,255),-1);    
+            }            
+        }
+
+        cv::Point2d p1(proj_image_w_half-(roi_bottom_w/2),proj_image_h-1);
+        cv::Point2d p2(proj_image_w_half+(roi_bottom_w/2),proj_image_h-1);
+        cv::Point2d p3(proj_image_w_half+(roi_top_w/2),0);
+        cv::Point2d p4(proj_image_w_half-(roi_top_w/2),0);
+        cv::line(transformedImagePaintable,p1,p2,cv::Scalar(0,200,0));
+        cv::line(transformedImagePaintable,p2,p3,cv::Scalar(0,200,0));
+        cv::line(transformedImagePaintable,p3,p4,cv::Scalar(0,200,0));
+        cv::line(transformedImagePaintable,p4,p1,cv::Scalar(0,200,0));
+        cv::imshow("Lane markings", transformedImagePaintable);
+        //cv::imshow("Original image", image);
+        cv::waitKey(1);
+    #endif
+    //---------------------- END DEBUG OUTPUT LANE MARKINGS ------------------------------//
+
+
 
     //edges -> lane markings
-    vector<FuPoint<int>> laneMarkings = cLaneDetectionFu::extractLaneMarkings(edges);
+    //vector<FuPoint<int>> laneMarkings = cLaneDetectionFu::extractLaneMarkings(edges);
 
     // start actual execution
-    buildLaneMarkingsLists(laneMarkings);
+    //buildLaneMarkingsLists(laneMarkings);
 
-    ransac();
+    //ransac();
 
-    detectLane(7);
+    //detectLane(7);
 /*
     // Debugging
 
@@ -420,7 +475,7 @@ vector<vector<LineSegment<int>> > cLaneDetectionFu::getScanlines() {
     int segmentStart = -1;
     vector<LineSegment<int>> scanline;
     //i = y; j = x;
-    for (int i = 0; (i/distance) < count && i <= proj_image_h; i += distance) {
+    for (int i = 1; (i/distance) < count && i <= proj_image_h; i += distance) {
         scanline = vector<LineSegment<int>>();
         
         // walk along line
@@ -456,6 +511,7 @@ vector<vector<LineSegment<int>> > cLaneDetectionFu::getScanlines() {
  * @return All edgePoints on side, sorted by scanlines.
  */
 vector<vector<EdgePoint>> cLaneDetectionFu::scanImage(cv::Mat image) {
+    //ROS_INFO_STREAM("scanImage() - " << scanlines.size() << " scanlines.");
     vector<vector<EdgePoint>> edgePoints;
     
     //const Image &image = getImage();
@@ -474,39 +530,47 @@ vector<vector<EdgePoint>> cLaneDetectionFu::scanImage(cv::Mat image) {
         std::fill(scanlineVals.begin(), scanlineVals.end(), 0);
         int offset = 0;
         if (scanline.size()) {
-            offset = scanline.front().getStart().getX();            
+            offset = scanline.front().getStart().getY();            
         }
+
+        //ROS_INFO_STREAM("scanImage() outer loop - " << scanline.size() << " linesegments.");
+
         // scanline consisting of multiple segments
         // walk over each but store kernel results for whole scanline
         for (auto segment : scanline) {         
-            int start = segment.getStart().getY();
-            int end = segment.getEnd().getY();
+            int start = segment.getStart().getX();
+            int end = segment.getEnd().getX();
             
             // walk along segment
             for (int i = start; i < end - g_kernel1DWidth; i++) {
                 int sum = 0;                
 
+                if (image.at<uint8_t>(i, offset -1) > 255 || image.at<uint8_t>(i, offset -1) < 0) {
+                    ROS_INFO_STREAM(image.at<uint8_t>(i, offset -1) << " is img val.");
+                }
+
                 // use kernel width 5 and try sobel kernel
-                sum -= image.at<int>(offset -1, i);
-                sum -= image.at<int>(offset -1, i+1);
+                sum -= image.at<uint8_t>(i, offset -1);
+                sum -= image.at<uint8_t>(i+1, offset -1);
                 // kernel is 0
-                sum += image.at<int>(offset -1, i+3);
-                sum += image.at<int>(offset -1, i+4);
+                sum += image.at<uint8_t>(i+3, offset -1);
+                sum += image.at<uint8_t>(i+4, offset -1);
 
-                sum -= 2*image.at<int>(offset, i);
-                sum -= 2*image.at<int>(offset, i+1);
+                sum -= 2*image.at<uint8_t>(i, offset);
+                sum -= 2*image.at<uint8_t>(i+1, offset);
                 // kernel is 0
-                sum += 2*image.at<int>(offset, i+3);
-                sum += 2*image.at<int>(offset, i+4);
+                sum += 2*image.at<uint8_t>(i+3, offset);
+                sum += 2*image.at<uint8_t>(i+4, offset);
 
-                sum -= image.at<int>(offset +1, i);
-                sum -= image.at<int>(offset +1, i+1);
+                sum -= image.at<uint8_t>(i, offset +1);
+                sum -= image.at<uint8_t>(i+1, offset +1);
                 // kernel is 0
-                sum += image.at<int>(offset +1, i+3);
-                sum += image.at<int>(offset +1, i+4);
+                sum += image.at<uint8_t>(i+3, offset +1);
+                sum += image.at<uint8_t>(i+4, offset +1);
         
                 // +4 because of sobel weighting
                 sum = sum / (3 * g_kernel1DWidth + 4);
+                ROS_INFO_STREAM(sum << " is kernel sum.");
                 if (std::abs(sum) > m_gradientThreshold) {
                     // set scanlineVals at center of kernel
                     scanlineVals[i + g_kernel1DWidth/2] = sum;
@@ -1771,11 +1835,11 @@ int main(int argc, char **argv)
     //nh.param<std::string>("camera_name", camera_name, "/usb_cam/image_raw"); 
     nh.param<int>("cam_w", cam_w, 640);
     nh.param<int>("cam_h", cam_h, 480);
-    nh.param<int>(node_name+"/proj_y_start", proj_y_start, 400);
+    nh.param<int>(node_name+"/proj_y_start", proj_y_start, 415);
     nh.param<int>(node_name+"/proj_image_h", proj_image_h, 40);
     nh.param<int>(node_name+"/proj_image_w", proj_image_w, 80);
-    nh.param<int>(node_name+"/roi_top_w", roi_top_w, 40);
-    nh.param<int>(node_name+"/roi_bottom_w", roi_bottom_w, 40);
+    nh.param<int>(node_name+"/roi_top_w", roi_top_w, 70);
+    nh.param<int>(node_name+"/roi_bottom_w", roi_bottom_w, 30);
     nh.param<int>(node_name+"/proj_image_horizontal_offset", proj_image_horizontal_offset, 0);
     /*nh.param<std::string>(node_name+"/path_2features", path_2features,
         "/home/vena/Dropbox/lane_detection/catkin_ws/src/line_detection/src/strongClassifiers/classifier_2features.txt");
