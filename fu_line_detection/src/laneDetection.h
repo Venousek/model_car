@@ -151,9 +151,9 @@ class cLaneDetectionFu
          * straight lane would show up in the relative coordinate system with the
          * car standing in the center of the right lane.
          */
-        int defaultYLeft;
-        int defaultYCenter;
-        int defaultYRight;
+        int defaultXLeft;
+        int defaultXCenter;
+        int defaultXRight;
 
         /**
          * The maximum distance of a point to a polynomial so that it counts as a
@@ -177,21 +177,21 @@ class cLaneDetectionFu
         int interestDistanceDefault;
 
         /**
-         * The minimal x of the ROIs. Points with smaller x-Values are not
+         * The minimal y of the ROIs. Points with smaller y-Values are not
          * used in RANSAC.
          */
-        int minXRoi;
+        int minYRoi;
 
         /**
-         * The maximal x of default ROIs. Points with bigger x-Values are not used.
+         * The maximal y of default ROIs. Points with bigger y-Values are not used.
          */
-        int maxXDefaultRoi;
+        int maxYDefaultRoi;
 
         /**
-         * The maximal x of the polynomial ROIs. Points with bigger x-Values are not
+         * The maximal y of the polynomial ROIs. Points with bigger y-Values are not
          * used.
          */
-        int maxXPolyRoi;
+        int maxYPolyRoi;
 
         /**
          * The minimal proportion of supporters of all points within a ROI.
