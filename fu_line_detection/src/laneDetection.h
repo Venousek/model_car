@@ -54,6 +54,7 @@ THIS SOFTWARE IS PROVIDED BY AUDI AG AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR
 #include "tools/Edges.h"
 #include "tools/NewtonPolynomial.h"
 #include "tools/LanePolynomial.h"
+//#include "tools/enums.h"
 
 using namespace std;
 //using namespace cv;
@@ -64,14 +65,7 @@ using namespace std;
 #include "ContourModel.h"
 #include "momenTUM_const.h"*/
 
-/**
- * An enum type for distinguishing between the positions of the lane markings
- */
-enum ePosition {
-    LEFT,  //!< position of things associated with the left lane marking
-    CENTER,//!< position of things associated with the center lane marking
-    RIGHT  //!< position of things associated with the right lane marking
-};
+
 
 class cLaneDetectionFu
 {

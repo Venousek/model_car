@@ -41,3 +41,11 @@ void LanePolynomial::setNotDetected() {
 void LanePolynomial::setDetected() {
     lanesDetected = true;
 }
+
+const ePosition LanePolynomial::getLastUsedPosition() const {
+    return lastUsedPosition;
+}
+
+void LanePolynomial::setLastUsedPosition(ePosition position) {
+    lastUsedPosition = position;
+}

@@ -9,6 +9,8 @@
 #define SRC_REPRESENTATIONS_COGNITION_VISION_LANEPOLYNOMIAL_H_
 
 #include "NewtonPolynomial.h"
+#include "enums.h"
+
 
 class LanePolynomial {
 public:
@@ -25,11 +27,15 @@ public:
     void setNotDetected();
     void setDetected();
 
+    const ePosition getLastUsedPosition() const;
+    void setLastUsedPosition(ePosition);
+
 private:
     NewtonPolynomial lanePoly;
     std::vector<FuPoint<int>> lanePoints;
 
     bool lanesDetected;
+    ePosition lastUsedPosition;
 };
 
 #endif /* SRC_REPRESENTATIONS_COGNITION_VISION_LANEPOLYNOMIAL_H_ */

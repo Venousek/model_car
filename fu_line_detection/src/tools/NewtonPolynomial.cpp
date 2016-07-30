@@ -37,8 +37,11 @@ NewtonPolynomial::~NewtonPolynomial()
  * @param x x-value of data-point
  * @param y y-value of data-point
  * @return pointer to this NewtonPolynomial
+ * 
+ * THE X and Y axes are swapped because we want to have the polynomial "verticaly"
+ * only place where we need to swap it should be this place.
  */
-NewtonPolynomial& NewtonPolynomial::addData(double x, double y)
+NewtonPolynomial& NewtonPolynomial::addData(double y, double x)
 {
 	// assume that table for actual polynomial with given degree is complete
 
@@ -89,6 +92,17 @@ NewtonPolynomial& NewtonPolynomial::addData(double x, double y)
 NewtonPolynomial& NewtonPolynomial::addData(FuPoint<double> p)
 {
 	return this->addData(p.getX(), p.getY());
+}
+
+/**
+ * overloads addData(double x, double y)
+ *
+ * @param p the data-point to add
+ * @return Pointer to this NewtonPolynomial
+ */
+NewtonPolynomial& NewtonPolynomial::addDataXY(FuPoint<double> p)
+{
+	return this->addData(p.getY(), p.getX());
 }
 
 /**

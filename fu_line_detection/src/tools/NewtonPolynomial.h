@@ -16,6 +16,7 @@ public:
 
 	NewtonPolynomial& addData(double x, double y);
 	NewtonPolynomial& addData(FuPoint<double> p);
+	NewtonPolynomial& addDataXY(FuPoint<double> p);
 	NewtonPolynomial& addData(std::vector<FuPoint<double>> ps);
 
 	double at(double x) const;
