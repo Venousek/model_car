@@ -62,6 +62,7 @@ using namespace std;
 class cLaneDetectionFu
 {
     private:
+
         // the node handle
         ros::NodeHandle nh_;
 
@@ -86,6 +87,9 @@ class cLaneDetectionFu
         int proj_image_horizontal_offset;
         int roi_top_w;
         int roi_bottom_w;
+
+        int scanlinesVerticalDistance;
+        int scanlinesMaxCount;
 
         vector<vector<LineSegment<int>> > scanlines;
 
@@ -219,6 +223,8 @@ class cLaneDetectionFu
 
         int angleAdjacentLeg;
 
+        
+
 
     public:
         
@@ -229,7 +235,7 @@ class cLaneDetectionFu
                 int minYRoi_, int maxYDefaultRoi_, int maxYPolyRoi_, int defaultXLeft_, int defaultXCenter_,
                 int defaultXRight_, int interestDistancePoly_, int interestDistanceDefault_, int iterationsRansac_,
                 double proportionThreshould_, int m_gradientThreshold_, int m_nonMaxWidth_, int laneMarkingSquaredThreshold_,
-                int angleAdjacentLeg_);
+                int angleAdjacentLeg_, int scanlinesVerticalDistance_, int scanlinesMaxCount_);
     	virtual ~cLaneDetectionFu();
         int Init();
 

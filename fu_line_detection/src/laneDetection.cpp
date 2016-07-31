@@ -24,7 +24,7 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, i
         int roi_bottom_w_, int minYRoi_, int maxYDefaultRoi_, int maxYPolyRoi_, int defaultXLeft_, int defaultXCenter_,
         int defaultXRight_, int interestDistancePoly_, int interestDistanceDefault_, int iterationsRansac_,
         double proportionThreshould_, int m_gradientThreshold_, int m_nonMaxWidth_, int laneMarkingSquaredThreshold_,
-        int angleAdjacentLeg_)
+        int angleAdjacentLeg_, int scanlinesVerticalDistance_, int scanlinesMaxCount_)
     : nh_(nh), priv_nh_("~")
 {
 
@@ -90,6 +90,9 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, i
 
     laneMarkingSquaredThreshold = laneMarkingSquaredThreshold_;
     angleAdjacentLeg = angleAdjacentLeg_;
+
+    scanlinesVerticalDistance = scanlinesVerticalDistance_;
+    scanlinesMaxCount = scanlinesMaxCount_;
 
     head_time_stamp = ros::Time::now();
     
@@ -339,7 +342,7 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
         cv::Point pointLoc = cv::Point(5,5);
         cv::circle(transformedImagePaintable,pointLoc,3,cv::Scalar(0,0,255),0);
     }
-    
+
     pubRGBImageMsg(transformedImagePaintable);
 
     //---------------------- DEBUG OUTPUT LANE POLYNOMIAL ---------------------------------//
@@ -369,10 +372,6 @@ vector<vector<LineSegment<int>> > cLaneDetectionFu::getScanlines() {
     checkContour.push_back(cv::Point(proj_image_w_half+(roi_bottom_w/2),maxYPolyRoi-1));
     checkContour.push_back(cv::Point(proj_image_w_half+(roi_top_w/2),minYRoi));
     checkContour.push_back(cv::Point(proj_image_w_half-(roi_top_w/2),minYRoi));
-
-
-    int distance = 1;
-    int count = 100;
     
     int scanlineStart = 0;
     int scanlineEnd = proj_image_w;
@@ -380,12 +379,14 @@ vector<vector<LineSegment<int>> > cLaneDetectionFu::getScanlines() {
     int segmentStart = -1;
     vector<LineSegment<int>> scanline;
     //i = y; j = x;
-    for (int i = 1; (i/distance) < count && i <= proj_image_h; i += distance) {
+    for (int i = 1;
+        (i/scanlinesVerticalDistance) < scanlinesMaxCount && i <= proj_image_h;
+        i += scanlinesVerticalDistance) {
         scanline = vector<LineSegment<int>>();
         
         // walk along line
         for (int j = scanlineStart; j <= scanlineEnd; j ++) {
-            bool isInside = pointPolygonTest(checkContour, cv::Point(j, i),false) >= 0;//   roi.isInside(Point<int>(offset, j));
+            bool isInside = pointPolygonTest(checkContour, cv::Point(j, i),false) >= 0;
             
             // start new scanline segment
             if (isInside && j < scanlineEnd) {
@@ -1486,6 +1487,8 @@ int main(int argc, char **argv)
     int m_nonMaxWidth;
     int laneMarkingSquaredThreshold;
     int angleAdjacentLeg;
+    int scanlinesVerticalDistance;
+    int scanlinesMaxCount;
 
     //nh.param<std::string>("camera_name", camera_name, "/usb_cam/image_raw"); 
     nh.param<int>("cam_w", cam_w, 640);
@@ -1516,12 +1519,16 @@ int main(int argc, char **argv)
     nh.param<int>(node_name+"/laneMarkingSquaredThreshold", laneMarkingSquaredThreshold, 25);
 
     nh.param<int>(node_name+"/angleAdjacentLeg", angleAdjacentLeg, 25);
+    
+    nh.param<int>(node_name+"/scanlinesVerticalDistance", scanlinesVerticalDistance, 1);
+    nh.param<int>(node_name+"/scanlinesMaxCount", scanlinesMaxCount, 100);
 
 
     cLaneDetectionFu node(nh, cam_w, cam_h, proj_y_start, proj_image_h, proj_image_w, proj_image_horizontal_offset,
         roi_top_w, roi_bottom_w, minYRoi, maxYDefaultRoi, maxYPolyRoi, defaultXLeft, defaultXCenter,
         defaultXRight, interestDistancePoly, interestDistanceDefault, iterationsRansac, proportionThreshould,
-        m_gradientThreshold, m_nonMaxWidth, laneMarkingSquaredThreshold, angleAdjacentLeg);
+        m_gradientThreshold, m_nonMaxWidth, laneMarkingSquaredThreshold, angleAdjacentLeg, scanlinesVerticalDistance,
+        scanlinesMaxCount);
     while(ros::ok())
     {
         ros::spinOnce();

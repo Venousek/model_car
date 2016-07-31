@@ -29,6 +29,8 @@
     <param name="m_nonMaxWidth"                 type="int"    value="10"/>
     <param name="laneMarkingSquaredThreshold"   type="int"    value="25"/>
     <param name="angleAdjacentLeg"              type="int"    value="25"/>
+    <!--param name="scanlinesVerticalDistance"     type="int"    value="1"/>
+    <param name="scanlinesMaxCount"             type="int"    value="100"/-->
   </node>
 
  
