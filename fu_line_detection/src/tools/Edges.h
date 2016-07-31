@@ -2,11 +2,7 @@
 #ifndef EDGES_H_
 #define EDGES_H_
 
-//#include "debug.h"
-//#include "ModuleFramework/Serializer.h"
-//#include "tools/position.h"
 #include "FuPoint.h"
-//#include "representations/cognition/vision/OmnidirectionalCameraMatrix.h"
 
 #include <vector>
 #include <stdint.h>

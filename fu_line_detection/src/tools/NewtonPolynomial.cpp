@@ -1,6 +1,5 @@
 #include "boost/numeric/ublas/io.hpp"
 
-//#include "debug.h"
 
 #include "NewtonPolynomial.h"
 

@@ -54,17 +54,9 @@ THIS SOFTWARE IS PROVIDED BY AUDI AG AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR
 #include "tools/Edges.h"
 #include "tools/NewtonPolynomial.h"
 #include "tools/LanePolynomial.h"
-//#include "tools/enums.h"
+#include "tools/enums.h"
 
 using namespace std;
-//using namespace cv;
-
-/*#include "LaneModel.h"
-#include "LaneDetector.h"
-#include "IPMapper.h"
-#include "ContourModel.h"
-#include "momenTUM_const.h"*/
-
 
 
 class cLaneDetectionFu
@@ -81,40 +73,9 @@ class cLaneDetectionFu
 
         // publishers
         //ros::Publisher publish_images;
-        //ros::Publisher publish_curvature;;
+        //ros::Publisher publish_curvature;
+        ros::Publisher publish_angle;
 
-        double m_LastValue;
-
-        bool firstFrame;               /**< flag for the first frame*/
-        uint8_t  imagecount;              /**< counter for the imaes*/
-
-
-        //define inner camera parameters (values will be gained from the opencv camera calibration program)
-        /*float f_u;
-        float f_v;
-
-        //camera optical center
-        float c_u;
-        float c_v;
-
-        //cos(pitch),cos(yaw),sin(pitch),sin(yaw)
-        float c_1;
-        float c_2;
-
-        float s_1;
-        float s_2;
-
-        //heigth of the camera above ground(cm)
-        float h;
-
-        //Transformation matrix and inverse transformation matrix
-        Mat T;
-        Mat T_inv;
-
-        //field of interest
-        Point foe_p1;           //left top
-        Point foe_p2;           //right bot
-*/
         
         int cam_w;
         int cam_h;
@@ -122,9 +83,9 @@ class cLaneDetectionFu
         int proj_image_h;
         int proj_image_w;
         int proj_image_w_half;
+        int proj_image_horizontal_offset;
         int roi_top_w;
         int roi_bottom_w;
-        int proj_image_horizontal_offset;
 
         vector<vector<LineSegment<int>> > scanlines;
 
@@ -254,37 +215,29 @@ class cLaneDetectionFu
 
         LanePolynomial lanePolynomial;
 
-        /*decltype(int() * int())*/ int squaredThreshold;
+        int laneMarkingSquaredThreshold;
 
-
-        //LaneDetector detector;
-        //LaneModel    model;
-
-        //std::string PATH_2FEATURES,PATH_30FEATURES;
-
-        // cObjectPtr<IMediaTypeDescription> m_pCoderDescLaneInfo;
-        // cObjectPtr<IMediaTypeDescription> m_pCoderDescMotionData;
-        // cObjectPtr<IMediaTypeDescription> m_pCoderDescValue;
-        // cObjectPtr<IMediaTypeDescription> m_pCoderDescValueOut;
-        // cObjectPtr<IMediaTypeDescription> m_pCoderDescValueOvertaking;
+        int angleAdjacentLeg;
 
 
     public:
-        //std::string classifier_file_path;
-
+        
         void resetSystem();
 
     	cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, int proj_y_start_,
-            int proj_image_h_, int proj_image_w_, int roi_top_w_, int roi_bottom_w_, int roi_horizontal_offset_);
+                int proj_image_h_, int proj_image_w_, int proj_image_horizontal_offset, int roi_top_w_, int roi_bottom_w_,
+                int minYRoi_, int maxYDefaultRoi_, int maxYPolyRoi_, int defaultXLeft_, int defaultXCenter_,
+                int defaultXRight_, int interestDistancePoly_, int interestDistanceDefault_, int iterationsRansac_,
+                double proportionThreshould_, int m_gradientThreshold_, int m_nonMaxWidth_, int laneMarkingSquaredThreshold_,
+                int angleAdjacentLeg_);
     	virtual ~cLaneDetectionFu();
         int Init();
 
-    	/*! processing
-    	@param pSample the input media sample
-
-    	*/
         void ProcessInput(const sensor_msgs::Image::ConstPtr& msg);
-        //void pubRealSenseRGBImageMsg(cv::Mat& rgb_mat);
+        
+        void pubRGBImageMsg(cv::Mat& rgb_mat);
+
+        void pubAngle();
 
         std::vector<std::vector<LineSegment<int>> > getScanlines();
 

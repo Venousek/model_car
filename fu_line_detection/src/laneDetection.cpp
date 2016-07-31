@@ -1,9 +1,6 @@
 #include "laneDetection.h"
-//#include "tools/Point.h"
-
 
 using namespace std;
-//using namespace cv;
 
 #define PAINT_OUTPUT
 
@@ -11,30 +8,35 @@ static const uint32_t MY_ROS_QUEUE_SIZE = 1000;
 
 #define PI 3.14159265
 
-//image_transport::CameraPublisher realsense_rgb_image_pub;
+image_transport::CameraPublisher image_publisher;
 
 //msgs head
-/*unsigned int head_sequence_id = 0;
+unsigned int head_sequence_id = 0;
 ros::Time head_time_stamp;
 std::string rgb_frame_id = "_rgb_optical_frame";
-sensor_msgs::CameraInfoPtr rgb_camera_info;*/
+sensor_msgs::CameraInfoPtr rgb_camera_info;
 
 // try kernel width 5 for now
 const static int g_kernel1DWidth = 5;
 
 cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, int proj_y_start_,
-        int proj_image_h_, int proj_image_w_, int roi_top_w_, int roi_bottom_w_, int proj_image_horizontal_offset_)
-    : nh_(nh), priv_nh_("~")/*,detector(detector_size,Point(0,0),Point(proj_image_w_,proj_image_h_),
-        proj_image_h_,proj_image_w_,roi_top_w_,roi_bottom_w_,path_2features, path_30features),model(true, proj_image_w_/2, lane_width)*/
+        int proj_image_h_, int proj_image_w_, int proj_image_horizontal_offset_, int roi_top_w_,
+        int roi_bottom_w_, int minYRoi_, int maxYDefaultRoi_, int maxYPolyRoi_, int defaultXLeft_, int defaultXCenter_,
+        int defaultXRight_, int interestDistancePoly_, int interestDistanceDefault_, int iterationsRansac_,
+        double proportionThreshould_, int m_gradientThreshold_, int m_nonMaxWidth_, int laneMarkingSquaredThreshold_,
+        int angleAdjacentLeg_)
+    : nh_(nh), priv_nh_("~")
 {
-
 
     cam_w = cam_w_;
     cam_h = cam_h_;
+
     proj_y_start = proj_y_start_;
     proj_image_h = proj_image_h_;
     proj_image_w = proj_image_w_;
     proj_image_w_half = proj_image_w/2;
+    proj_image_horizontal_offset = proj_image_horizontal_offset_;
+
     roi_top_w = roi_top_w_;
     roi_bottom_w = roi_bottom_w_;
 
@@ -69,47 +71,43 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, i
     lanePoly             = NewtonPolynomial();
     lanePolynomial       = LanePolynomial();
 
-    iterationsRansac     = 10;
-    proportionThreshould = 0.5;
+    iterationsRansac     = iterationsRansac_;
+    proportionThreshould = proportionThreshould_;
 
-    minYRoi        = 5;
-    maxYDefaultRoi = 38;
-    maxYPolyRoi    = 38;
+    minYRoi        = minYRoi_;
+    maxYDefaultRoi = maxYDefaultRoi_;
+    maxYPolyRoi    = maxYPolyRoi_;
 
-    defaultXLeft = 10;
-    defaultXCenter = 30;
-    defaultXRight = 50;
+    defaultXLeft = defaultXLeft_;
+    defaultXCenter = defaultXCenter_;
+    defaultXRight = defaultXRight_;
 
-    interestDistancePoly = 10;//(cfgPolyRoiWidth->get() / 2) * meters;
-    interestDistanceDefault = 10;//(cfgDefaultRoiWidth->get() / 2) * meters;
+    interestDistancePoly = interestDistancePoly_;
+    interestDistanceDefault = interestDistanceDefault_;    
 
-    m_gradientThreshold = 10;
-    m_nonMaxWidth = 10;
+    m_gradientThreshold = m_gradientThreshold_;
+    m_nonMaxWidth = m_nonMaxWidth_;
 
-    //int threshold(6);
-    squaredThreshold = 25;
+    laneMarkingSquaredThreshold = laneMarkingSquaredThreshold_;
+    angleAdjacentLeg = angleAdjacentLeg_;
 
-    //laneMarkings();
-
-    //proj_image_horizontal_offset = proj_image_horizontal_offset_;
-
-    //head_time_stamp = ros::Time::now();
-
-    //m_LastValue = 0;
+    head_time_stamp = ros::Time::now();
+    
     read_images_ = nh.subscribe(nh_.resolveName("/camera/ground_image_ipmapped"), 1,&cLaneDetectionFu::ProcessInput,this);
 
     //publish_curvature = nh.advertise<std_msgs::Float32>("/lane_model/curvature", MY_ROS_QUEUE_SIZE);
+    publish_angle = nh.advertise<std_msgs::Float32>("/lane_model/angle", MY_ROS_QUEUE_SIZE);
 
-    //image_transport::ImageTransport image_transport(nh);
+    image_transport::ImageTransport image_transport(nh);
     
-    //realsense_rgb_image_pub = image_transport.advertiseCamera("/lane_model/lane_model_image", 1);
+    image_publisher = image_transport.advertiseCamera("/lane_model/lane_model_image", 1);
 
-    /*if (!rgb_camera_info)
+    if (!rgb_camera_info)
     {
         rgb_camera_info.reset(new sensor_msgs::CameraInfo());
         rgb_camera_info->width = proj_image_w;
         rgb_camera_info->height = proj_image_h+50;
-    }*/
+    }
 
     //from camera properties and ROI etc we get scanlines (=line segments, úsečky)
     //these line segments are lines in image on whose we look for edges
@@ -118,7 +116,7 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, i
     scanlines = getScanlines();
 
 
-    ROS_ERROR_STREAM(scanlines.size() << " scanlines generated.");
+    /*ROS_ERROR_STREAM(scanlines.size() << " scanlines generated.");
 
     for(int i=0; i<scanlines.size(); ++i) {
         ROS_ERROR_STREAM(scanlines[i].size() << " LineSegment in scanline.");
@@ -126,7 +124,7 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, i
             ROS_ERROR_STREAM(scanlines[i][j].getStart() << " is start.");
             ROS_ERROR_STREAM(scanlines[i][j].getEnd() << " is end.");
         }
-    }
+    }*/
 }
 
 cLaneDetectionFu::~cLaneDetectionFu()
@@ -135,16 +133,11 @@ cLaneDetectionFu::~cLaneDetectionFu()
 
 int cLaneDetectionFu::Init()
 {
-	//firstFrame = True;
-	imagecount = 0;
-	m_LastValue = 0;
 	return 1;
 }
 
-//re-initialize the whole system
 void cLaneDetectionFu::resetSystem()
-{
-    //model = LaneModel(false);
+{    
 }
 
 void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
@@ -188,10 +181,11 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
     //this is where we use input image!
     vector<vector<EdgePoint>> edges = cLaneDetectionFu::scanImage(transformedImage);
 
+    cv::Mat transformedImagePaintable;
 
     //---------------------- DEBUG OUTPUT EDGES ---------------------------------//
     #ifdef PAINT_OUTPUT
-        cv::Mat transformedImagePaintable = transformedImage.clone();
+        transformedImagePaintable = transformedImage.clone();
         cv::cvtColor(transformedImagePaintable,transformedImagePaintable,CV_GRAY2BGR);
         for(int i = 0; i < (int)edges.size(); i++)
         {
@@ -314,108 +308,47 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
 
     detectLane(38);
 
+    pubAngle();
+
+    transformedImagePaintable = transformedImage.clone();
+    cv::cvtColor(transformedImagePaintable,transformedImagePaintable,CV_GRAY2BGR);
+
+    if (lanePolynomial.hasDetected()) {
+        int r = lanePolynomial.getLastUsedPosition() == LEFT ? 255 : 0;
+        int g = lanePolynomial.getLastUsedPosition() == CENTER ? 255 : 0;
+        int b = lanePolynomial.getLastUsedPosition() == RIGHT ? 255 : 0;
+
+        
+        for(int i = minYRoi; i < maxYPolyRoi; i++)
+        {
+            cv::Point pointLoc = cv::Point(lanePolynomial.getLanePoly().at(i)+proj_image_w_half, i);
+            cv::circle(transformedImagePaintable,pointLoc,0,cv::Scalar(b,g,r),-1);
+        }     
+
+        std::vector<FuPoint<int>> supps = lanePolynomial.getLastUsedPosition() == LEFT 
+            ? supportersLeft 
+            : lanePolynomial.getLastUsedPosition() == CENTER ? supportersCenter : supportersRight;
+
+        for(int i = 0; i < (int)supps.size(); i++)
+        {         
+            FuPoint<int> supp = supps[i];
+            cv::Point suppLoc = cv::Point(supp.getX(), supp.getY());
+            cv::circle(transformedImagePaintable,suppLoc,1,cv::Scalar(b,g,r),-1);         
+        }     
+    } else {
+        cv::Point pointLoc = cv::Point(5,5);
+        cv::circle(transformedImagePaintable,pointLoc,3,cv::Scalar(0,0,255),0);
+    }
+    
+    pubRGBImageMsg(transformedImagePaintable);
+
     //---------------------- DEBUG OUTPUT LANE POLYNOMIAL ---------------------------------//
     #ifdef PAINT_OUTPUT
-        transformedImagePaintable = transformedImage.clone();
-        cv::cvtColor(transformedImagePaintable,transformedImagePaintable,CV_GRAY2BGR);
-
-        if (lanePolynomial.hasDetected()) {
-            int r = lanePolynomial.getLastUsedPosition() == LEFT ? 255 : 0;
-            int g = lanePolynomial.getLastUsedPosition() == CENTER ? 255 : 0;
-            int b = lanePolynomial.getLastUsedPosition() == RIGHT ? 255 : 0;
-
-            
-            for(int i = minYRoi; i < maxYPolyRoi; i++)
-            {
-                cv::Point pointLoc = cv::Point(lanePolynomial.getLanePoly().at(i)+proj_image_w_half, i);
-                cv::circle(transformedImagePaintable,pointLoc,0,cv::Scalar(b,g,r),-1);
-            }     
-
-            std::vector<FuPoint<int>> supps = lanePolynomial.getLastUsedPosition() == LEFT 
-                ? supportersLeft 
-                : lanePolynomial.getLastUsedPosition() == CENTER ? supportersCenter : supportersRight;
-
-            for(int i = 0; i < (int)supps.size(); i++)
-            {         
-                FuPoint<int> supp = supps[i];
-                cv::Point suppLoc = cv::Point(supp.getX(), supp.getY());
-                cv::circle(transformedImagePaintable,suppLoc,1,cv::Scalar(b,g,r),-1);         
-            }     
-        } else {
-            cv::Point pointLoc = cv::Point(5,5);
-            cv::circle(transformedImagePaintable,pointLoc,3,cv::Scalar(0,0,255),0);
-        }
+        
         cv::imshow("Lane polynomial", transformedImagePaintable);
         cv::waitKey(1);
     #endif
     //---------------------- END DEBUG OUTPUT LANE POLYNOMIAL ------------------------------//
-
-
-/*
-
-
-		// cv_bridge::CvImage out_msg;
-		// out_msg.header   = msg->header; // Same timestamp and tf frame as input image
-		// out_msg.encoding = sensor_msgs::image_encodings::MONO8; // Or whatever
-		// out_msg.image    = transformedImage; // Your cv::Mat
-  		// publish_images_.publish(out_msg.toImageMsg());
-        
-        //use the detected lane markings to find contours in the image
-        Mat circleImage(proj_image_h,proj_image_w,CV_8UC1,Scalar(0));
-        for(int i = 0;i < (int)laneMarkings.size();i++)
-        {
-            circle(circleImage,laneMarkings.at(i),3,Scalar(255),-1);
-        }
-
-        vector<vector<Point> > contours;
-        vector<Vec4i> hierarchy;
-        findContours(circleImage,contours,hierarchy,RETR_TREE,CHAIN_APPROX_SIMPLE,Point(0,0));
-        ContourModel cModel;
-        bool midLaneFound = cModel.update(contours,laneMarkings,proj_image_w_half);
-        vector<vector<Point2d> > nicelyGroupedPoints = cModel.points;
-
-        if (midLaneFound)
-        	ROS_ERROR("Found a midlane!");
-        
-       //ROS_ERROR("Found: %d",midLaneFound);
-        model.improvedUpdate(&nicelyGroupedPoints,midLaneFound);
-        //ROS_ERROR("CERTAINTY: %d",model.certainty);
-        // SEND OUT OLD LANE INFORMATION
-        double curvature; //1/cm
-        double distanceRightLane; //cm
-        double angle; //rad
-        bool isCurve;
-        model.getCarState(&curvature,&distanceRightLane,&angle,&isCurve);
-        //send is curve info:
-        int stamp = 0;
-        ros::WallTime end = ros::WallTime::now();
-        ros::WallDuration d= end-begin;
-        ROS_ERROR("time: %ld", d.toNSec()/1000000); 
-
-
-        
-            int carOffset = 50;
-            Mat laneModelDrawing(proj_image_h+carOffset,proj_image_w,CV_8UC3,Scalar(0,0,0));
-            Mat transformedImageCopy = transformedImage.clone();
-            cvtColor(transformedImageCopy,transformedImageCopy,CV_GRAY2BGR);
-            transformedImageCopy.copyTo(laneModelDrawing(Rect(0,carOffset,transformedImageCopy.cols,transformedImageCopy.rows)));
-            model.getDebugImage(laneModelDrawing);
-
-
-        pubRealSenseRGBImageMsg(laneModelDrawing);
-
-
-
-        //out_msg.header   = std_msgs::Header();
-        //out_msg.encoding = sensor_msgs::image_encodings::MONO8; // Or whatever
-        //out_msg.image    = laneModelDrawing; // Your cv::Mat
-        //publish_images.publish(out_msg.toImageMsg());
-
-        std_msgs::Float32 curvMsg;
-        curvMsg.data = curvature*100;
-        publish_curvature.publish(curvMsg);
-
-*/
 }
 
 
@@ -644,7 +577,7 @@ std::vector<FuPoint<int>> cLaneDetectionFu::extractLaneMarkings(const std::vecto
             if (edgePosition->isPositive() and not nextEdgePosition->isPositive()) {
                 FuPoint<int> candidateStartEdge = edgePosition->getImgPos();
                 FuPoint<int> candidateEndEdge = nextEdgePosition->getImgPos();
-                if ((candidateStartEdge - candidateEndEdge).squaredMagnitude() < squaredThreshold) {
+                if ((candidateStartEdge - candidateEndEdge).squaredMagnitude() < laneMarkingSquaredThreshold) {
                     result.push_back(center(candidateStartEdge, candidateEndEdge));
                 }
             }
@@ -1422,154 +1355,8 @@ bool cLaneDetectionFu::ransacInternal(ePosition position,
         return false;
     }
 
-    //ROS_INFO_STREAM("RANSAC success. best poly proportion: " << bestPoly.second);
-
     return true;
 }
-
-/**
- * Method for drawing a detected polynomial
- */
-/*void cLaneDetectionFu::drawPoly(
-        std::shared_ptr<DebuggingOption<DRAWING_RELATIVE>> debugTarget,
-        NewtonPolynomial& poly, int r, int g, int b) {
-    std::vector<double> xCoordinates = produceXCoordinates(maxXPolyRoi);
-    std::vector<double> polyYCoordinates = getPolyYCoordinates(xCoordinates,
-            poly);
-
-    DRAWDEBUG(debugTarget, {
-            SETCOLOR(r, g, b);
-            for (unsigned int i = 0; i < xCoordinates.size(); i++) {
-                CIRCLE(Centimeter(xCoordinates[i] * meters),
-                        Centimeter(polyYCoordinates[i] * meters),
-                        1 * centimeters);
-            }
-    });
-}*/
-
-/**
- * Method for drawing the ROI around a detected polynomial
- */
-/*void cLaneDetectionFu::drawPolyRoi(
-        std::shared_ptr<DebuggingOption<DRAWING_RELATIVE>> debugTarget,
-        NewtonPolynomial& poly, int r, int g, int b) {
-    std::vector<double> xCoordinates = produceXCoordinates(maxXPolyRoi);
-    std::vector<double> polyYCoordinates = getPolyYCoordinates(xCoordinates,
-            poly);
-
-    DRAWDEBUG(debugTarget, {
-            SETCOLOR(r, g, b);
-            for (unsigned int i = 0; i < xCoordinates.size(); i++) {
-                CIRCLE(Centimeter(xCoordinates[i] * meters),
-                        Centimeter((polyYCoordinates[i]
-                                - interestDistancePoly.value()) * meters),
-                                1 * centimeters);
-                CIRCLE(Centimeter(xCoordinates[i] * meters),
-                        Centimeter((polyYCoordinates[i]
-                                + interestDistancePoly.value()) * meters),
-                                1 * centimeters);
-            }
-    });
-
-}
-
-void cLaneDetectionFu::writeProportions() {
-    DRAWDEBUG(dbgProportions, {
-            SETCOLORWHITE;
-            TEXT(-10 * centimeters, Centimeter(defaultYLeft),
-                    std::to_string(bestPolyLeft.second));
-            TEXT(-10 * centimeters, Centimeter(defaultYCenter),
-                    std::to_string(bestPolyCenter.second));
-            TEXT(-10 * centimeters, Centimeter(defaultYRight),
-                    std::to_string(bestPolyRight.second));
-    });
-}*/
-
-/**
- * Calculates a vector of y-values of the given polynomial at the x-values given
- * as vector. The "at"-method of the NewtonPolynomial class is used, which
- * relies on the horner scheme.
- *
- * @param xCoordinates  The vector of x-values
- * @param poly          The given polynomial
- * @return              The vector of calculated y-values.
- */
-/*std::vector<double> cLaneDetectionFu::getPolyYCoordinates(
-        std::vector<double> xCoordinates, NewtonPolynomial& poly) {
-    std::vector<double> yCoordinates;
-    double yValue;
-
-    for (double xValue : xCoordinates) {
-        yValue = poly.at(xValue);
-        yCoordinates.push_back(yValue);
-    }
-
-    return yCoordinates;
-}*/
-
-/**
- * Create a vector of ascending x-values starting with the minimal x-value of
- * the ROIs and ending with the x-value distance. The x-values are 0.05 apart.
- *
- * @param distance  x-values smaller than this are added
- * @return          The vector of x-values
- */
-/*std::vector<double> cLaneDetectionFu::produceXCoordinates(Meter distance) {
-    std::vector<double> xCoordinates;
-    double x = minXRoi.value();
-
-    while (x < distance.value()) {
-        xCoordinates.push_back(x);
-        x += 0.05;
-    }
-
-    return xCoordinates;
-}*/
-
-/**
- * Method for drawing the supporters of a detected polynomial
- */
-/*void cLaneDetectionFu::drawSupporters(
-        std::shared_ptr<DebuggingOption<DRAWING_RELATIVE>> debugTarget,
-        std::vector<Point<Meter>> supporters, int r, int g, int b) {
-    DRAWDEBUG(debugTarget, {
-            SETCOLOR(r, g, b);
-            for (Point<Meter> p : supporters) {
-                CIRCLE(Centimeter(p.x), Centimeter(p.y),
-                        0.5 * centimeters);
-            }
-    });
-}*/
-
-/**
- * Method for drawing the lane marking points used to detect a polynomial
- */
-/*void cLaneDetectionFu::drawLaneMarkings(
-        std::shared_ptr<DebuggingOption<DRAWING_RELATIVE>> debugTarget,
-        std::vector<Point<Meter>> laneMarkings, int r, int g, int b) {
-    DRAWDEBUG(debugTarget, {
-            SETCOLOR(r, g, b);
-            for (Point<Meter> p : laneMarkings) {
-                CIRCLE(Centimeter(p.x), Centimeter(p.y),
-                        2 * centimeters);
-            }
-    });
-}*/
-
-/**
- * Method for drawing the points selected to interpolate the polynomial
- */
-/*void cLaneDetectionFu::drawPoints(
-        std::shared_ptr<DebuggingOption<DRAWING_RELATIVE>> debugTarget,
-        std::vector<Point<Meter>> points, int r, int g, int b) {
-    DRAWDEBUG(debugTarget, {
-            SETCOLOR(r, g, b);
-            for (Point<Meter> p : points) {
-                CIRCLE(Centimeter(p.x), Centimeter(p.y),
-                        2.5 * centimeters);
-            }
-    });
-}*/
 
 /**
  * Method, that checks, if a polynomial produced during RANSAC counts as usable.
@@ -1628,14 +1415,7 @@ bool cLaneDetectionFu::polyValid(ePosition position, NewtonPolynomial poly,
 
 
 
-
-
-
-
-
-
-
-/*void cLaneDetectionFu::pubRealSenseRGBImageMsg(cv::Mat& rgb_mat)
+void cLaneDetectionFu::pubRGBImageMsg(cv::Mat& rgb_mat)
 {
     sensor_msgs::ImagePtr rgb_img(new sensor_msgs::Image);
 
@@ -1654,28 +1434,25 @@ bool cLaneDetectionFu::polyValid(ePosition position, NewtonPolynomial poly,
     rgb_img->step = step;
     rgb_img->data.resize(size);
     memcpy(&(rgb_img->data[0]), rgb_mat.data, size);
-*/
-    /*rgb_camera_info->header.frame_id = rgb_frame_id;
+
+    rgb_camera_info->header.frame_id = rgb_frame_id;
     rgb_camera_info->header.stamp = head_time_stamp;
-    rgb_camera_info->header.seq = head_sequence_id;*/
+    rgb_camera_info->header.seq = head_sequence_id;
 
-    //realsense_rgb_image_pub.publish(rgb_img, rgb_camera_info);
+    image_publisher.publish(rgb_img, rgb_camera_info);
+}
 
+void cLaneDetectionFu::pubAngle()
+{
+    double oppositeLeg = lanePolynomial.getLanePoly().at(proj_image_h-angleAdjacentLeg);    
+    double result = atan (oppositeLeg/angleAdjacentLeg) * 180 / PI;
 
-    //save rgb img
-//  static int count = 0;
-//  count++;
-//  if(count > 0)
-//  {
-//      struct timeval save_time;
-//        gettimeofday( &save_time, NULL );
-//        char save_name[256];
-//        sprintf(save_name, "~/temp/realsense_rgb_%d.jpg", (int)save_time.tv_sec);
-//        printf("\nsave realsense rgb img: %s\n", save_name);
-//      cv::imwrite(save_name, rgb_mat);
-//      count = 0;
-//  }
-//}
+    std_msgs::Float32 angleMsg;
+
+    angleMsg.data = result;
+
+    publish_angle.publish(angleMsg);
+}
 
 
 int main(int argc, char **argv)
@@ -1683,22 +1460,32 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "cLaneDetectionFu");
     ros::NodeHandle nh;
 
-    //std::string node_name = "/line_detection_node/";
     std::string node_name = ros::this_node::getName();
 
     ROS_ERROR("Node name: %s",node_name.c_str());
-
 
     int cam_w;
     int cam_h;
     int proj_y_start;
     int proj_image_h;
     int proj_image_w;
+    int proj_image_horizontal_offset;
     int roi_top_w;
     int roi_bottom_w;
-    int proj_image_horizontal_offset;
-    int detector_size;
-    int lane_width;
+    int minYRoi;
+    int maxYDefaultRoi;
+    int maxYPolyRoi;
+    int defaultXLeft;
+    int defaultXCenter;
+    int defaultXRight;
+    int interestDistancePoly;
+    int interestDistanceDefault;
+    int iterationsRansac;
+    double proportionThreshould;
+    int m_gradientThreshold;
+    int m_nonMaxWidth;
+    int laneMarkingSquaredThreshold;
+    int angleAdjacentLeg;
 
     //nh.param<std::string>("camera_name", camera_name, "/usb_cam/image_raw"); 
     nh.param<int>("cam_w", cam_w, 640);
@@ -1706,12 +1493,35 @@ int main(int argc, char **argv)
     nh.param<int>(node_name+"/proj_y_start", proj_y_start, 415);
     nh.param<int>(node_name+"/proj_image_h", proj_image_h, 40);
     nh.param<int>(node_name+"/proj_image_w", proj_image_w, 80);
+    nh.param<int>(node_name+"/proj_image_horizontal_offset", proj_image_horizontal_offset, 0);
     nh.param<int>(node_name+"/roi_top_w", roi_top_w, 62);
     nh.param<int>(node_name+"/roi_bottom_w", roi_bottom_w, 30);
-    nh.param<int>(node_name+"/proj_image_horizontal_offset", proj_image_horizontal_offset, 0);
+    
+    nh.param<int>(node_name+"/minYRoi", minYRoi, 5);
+    nh.param<int>(node_name+"/maxYDefaultRoi", maxYDefaultRoi, 39);
+    nh.param<int>(node_name+"/maxYPolyRoi", maxYPolyRoi, 39);
 
-    cLaneDetectionFu node(nh, cam_w, cam_h, proj_y_start, proj_image_h, proj_image_w,
-        roi_top_w, roi_bottom_w, proj_image_horizontal_offset);
+    nh.param<int>(node_name+"/defaultXLeft", defaultXLeft, 10);
+    nh.param<int>(node_name+"/defaultXCenter", defaultXCenter, 30);
+    nh.param<int>(node_name+"/defaultXRight", defaultXRight, 50);
+
+    nh.param<int>(node_name+"/interestDistancePoly", interestDistancePoly, 10);
+    nh.param<int>(node_name+"/interestDistanceDefault", interestDistanceDefault, 10);
+    
+    nh.param<int>(node_name+"/iterationsRansac", iterationsRansac, 10);
+    nh.param<double>(node_name+"/proportionThreshould", proportionThreshould, 0.5);
+    
+    nh.param<int>(node_name+"/m_gradientThreshold", m_gradientThreshold, 10);
+    nh.param<int>(node_name+"/m_nonMaxWidth", m_nonMaxWidth, 10);
+    nh.param<int>(node_name+"/laneMarkingSquaredThreshold", laneMarkingSquaredThreshold, 25);
+
+    nh.param<int>(node_name+"/angleAdjacentLeg", angleAdjacentLeg, 25);
+
+
+    cLaneDetectionFu node(nh, cam_w, cam_h, proj_y_start, proj_image_h, proj_image_w, proj_image_horizontal_offset,
+        roi_top_w, roi_bottom_w, minYRoi, maxYDefaultRoi, maxYPolyRoi, defaultXLeft, defaultXCenter,
+        defaultXRight, interestDistancePoly, interestDistanceDefault, iterationsRansac, proportionThreshould,
+        m_gradientThreshold, m_nonMaxWidth, laneMarkingSquaredThreshold, angleAdjacentLeg);
     while(ros::ok())
     {
         ros::spinOnce();
