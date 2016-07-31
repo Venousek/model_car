@@ -108,6 +108,8 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "online_IPM");
     ros::NodeHandle nh;
 
+    std::string node_name = ros::this_node::getName();
+
     std::string camera_name = "/usb_cam/image_raw";
     int ow = 640;                             //output width
     int oh = 480;                             //output height
@@ -118,15 +120,15 @@ int main(int argc, char **argv)
     double deg = 45;                          //degree of camera
     double cam_h = 10;                        //height of camera
 
-    nh.param<std::string>("camera_name", camera_name, "/usb_cam/image_raw"); 
+    nh.param<std::string>(node_name+"/camera_name", camera_name, "/usb_cam/image_raw"); 
     nh.param<int>("cam_w", ow, 640); 
     nh.param<int>("cam_h", oh, 480); 
-    nh.param<double>("f_u", f_u, 624.650635); 
-    nh.param<double>("f_v", f_v, 626.987244); 
-    nh.param<double>("c_u", c_u, 309.703230); 
-    nh.param<double>("c_v", c_v, 231.473613); 
-    nh.param<double>("deg", deg, 27); 
-    nh.param<double>("cam_height", cam_h, 18); 
+    nh.param<double>(node_name+"/f_u", f_u, 624.650635); 
+    nh.param<double>(node_name+"/f_v", f_v, 626.987244); 
+    nh.param<double>(node_name+"/c_u", c_u, 309.703230); 
+    nh.param<double>(node_name+"/c_v", c_v, 231.473613); 
+    nh.param<double>(node_name+"/deg", deg, 27); 
+    nh.param<double>(node_name+"/cam_height", cam_h, 18); 
 
     online_IPM node(nh,ow,oh,f_u,f_v,c_u,c_v,deg,cam_h,camera_name);
 

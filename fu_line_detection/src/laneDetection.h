@@ -96,6 +96,11 @@ class cLaneDetectionFu
         int m_gradientThreshold;
         int m_nonMaxWidth;
 
+        int polyY1;
+        int polyY2;
+        int polyY3;
+        
+
         /**
          * The lane marking polynomials detected in the current picture.
          */
@@ -235,7 +240,8 @@ class cLaneDetectionFu
                 int minYRoi_, int maxYDefaultRoi_, int maxYPolyRoi_, int defaultXLeft_, int defaultXCenter_,
                 int defaultXRight_, int interestDistancePoly_, int interestDistanceDefault_, int iterationsRansac_,
                 double proportionThreshould_, int m_gradientThreshold_, int m_nonMaxWidth_, int laneMarkingSquaredThreshold_,
-                int angleAdjacentLeg_, int scanlinesVerticalDistance_, int scanlinesMaxCount_);
+                int angleAdjacentLeg_, int scanlinesVerticalDistance_, int scanlinesMaxCount_,
+                int polyY1_, int polyY2_, int polyY3_);
     	virtual ~cLaneDetectionFu();
         int Init();
 

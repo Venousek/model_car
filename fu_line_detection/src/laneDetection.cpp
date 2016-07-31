@@ -24,7 +24,8 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, i
         int roi_bottom_w_, int minYRoi_, int maxYDefaultRoi_, int maxYPolyRoi_, int defaultXLeft_, int defaultXCenter_,
         int defaultXRight_, int interestDistancePoly_, int interestDistanceDefault_, int iterationsRansac_,
         double proportionThreshould_, int m_gradientThreshold_, int m_nonMaxWidth_, int laneMarkingSquaredThreshold_,
-        int angleAdjacentLeg_, int scanlinesVerticalDistance_, int scanlinesMaxCount_)
+        int angleAdjacentLeg_, int scanlinesVerticalDistance_, int scanlinesMaxCount_,
+        int polyY1_, int polyY2_, int polyY3_)
     : nh_(nh), priv_nh_("~")
 {
 
@@ -39,6 +40,10 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, i
 
     roi_top_w = roi_top_w_;
     roi_bottom_w = roi_bottom_w_;
+
+    polyY1 = polyY1_;
+    polyY2 = polyY2_;
+    polyY3 = polyY3_;
 
     polyDetectedLeft     = false;
     polyDetectedCenter   = false;
@@ -893,9 +898,9 @@ ePosition cLaneDetectionFu::maxProportion() {
 void cLaneDetectionFu::createLanePoly(ePosition position) {
     lanePoly.clear();
 
-    double x1 = 35;
-    double x2 = 30;
-    double x3 = 15;
+    double x1 = polyY1;
+    double x2 = polyY2;
+    double x3 = polyY3;
 
     FuPoint<double> pointRight1;
     FuPoint<double> pointRight2;
@@ -1370,40 +1375,40 @@ bool cLaneDetectionFu::ransacInternal(ePosition position,
 bool cLaneDetectionFu::polyValid(ePosition position, NewtonPolynomial poly,
         NewtonPolynomial prevPoly) {
 
-    FuPoint<int> p1 = FuPoint<int>(poly.at(20), 20);
+    FuPoint<int> p1 = FuPoint<int>(poly.at(polyY1), polyY1);
 
-    if (horizDistanceToDefaultLine(position, p1) > 10) {
-        //ROS_INFO("Poly was to far away from default line at y = 20");
-        return false;
-    }
-
-    FuPoint<int> p2 = FuPoint<int>(poly.at(25), 25);
-
-    if (horizDistanceToDefaultLine(position, p2) > 10) {
+    if (horizDistanceToDefaultLine(position, p1) > 6) {
         //ROS_INFO("Poly was to far away from default line at y = 25");
         return false;
     }
 
-    FuPoint<int> p3 = FuPoint<int>(poly.at(30), 30);
+    FuPoint<int> p2 = FuPoint<int>(poly.at(polyY2), polyY2);
 
-    if (horizDistanceToDefaultLine(position, p3) > 10) {
+    if (horizDistanceToDefaultLine(position, p2) > 8) {
+        //ROS_INFO("Poly was to far away from default line at y = 25");
+        return false;
+    }
+
+    FuPoint<int> p3 = FuPoint<int>(poly.at(polyY3), polyY3);
+
+    if (horizDistanceToDefaultLine(position, p3) > 12) {
         //ROS_INFO("Poly was to far away from default line at y = 30");
         return false;
     }
 
     if (prevPoly.getDegree() != -1) {
-        FuPoint<int> p4 = FuPoint<int>(poly.at(25), 25);
-        FuPoint<int> p5 = FuPoint<int>(prevPoly.at(25), 25);
+        FuPoint<int> p4 = FuPoint<int>(poly.at(polyY1), polyY1);
+        FuPoint<int> p5 = FuPoint<int>(prevPoly.at(polyY1), polyY1);
 
-        if (horizDistance(p4, p5) > 2) {//0.05 * meters) {
+        if (horizDistance(p4, p5) > 3) {//0.05 * meters) {
             //ROS_INFO("Poly was to far away from previous poly at y = 25");
             return false;
         }
 
-        FuPoint<int> p6 = FuPoint<int>(poly.at(30), 30);
-        FuPoint<int> p7 = FuPoint<int>(prevPoly.at(30), 30);
+        FuPoint<int> p6 = FuPoint<int>(poly.at(polyY2), polyY2);
+        FuPoint<int> p7 = FuPoint<int>(prevPoly.at(polyY2), polyY2);
 
-        if (horizDistance(p6, p7) > 2) {//0.05 * meters) {
+        if (horizDistance(p6, p7) > 3) {//0.05 * meters) {
             //ROS_INFO("Poly was to far away from previous poly at y = 30");
             return false;
         }
@@ -1490,6 +1495,11 @@ int main(int argc, char **argv)
     int scanlinesVerticalDistance;
     int scanlinesMaxCount;
 
+    int polyY1;
+    int polyY2;
+    int polyY3;
+
+
     //nh.param<std::string>("camera_name", camera_name, "/usb_cam/image_raw"); 
     nh.param<int>("cam_w", cam_w, 640);
     nh.param<int>("cam_h", cam_h, 480);
@@ -1523,12 +1533,17 @@ int main(int argc, char **argv)
     nh.param<int>(node_name+"/scanlinesVerticalDistance", scanlinesVerticalDistance, 1);
     nh.param<int>(node_name+"/scanlinesMaxCount", scanlinesMaxCount, 100);
 
+    nh.param<int>(node_name+"/polyY1", polyY1, 35);
+    nh.param<int>(node_name+"/polyY2", polyY2, 30);
+    nh.param<int>(node_name+"/polyY3", polyY1, 15);
+
+
 
     cLaneDetectionFu node(nh, cam_w, cam_h, proj_y_start, proj_image_h, proj_image_w, proj_image_horizontal_offset,
         roi_top_w, roi_bottom_w, minYRoi, maxYDefaultRoi, maxYPolyRoi, defaultXLeft, defaultXCenter,
         defaultXRight, interestDistancePoly, interestDistanceDefault, iterationsRansac, proportionThreshould,
         m_gradientThreshold, m_nonMaxWidth, laneMarkingSquaredThreshold, angleAdjacentLeg, scanlinesVerticalDistance,
-        scanlinesMaxCount);
+        scanlinesMaxCount, polyY1, polyY2, polyY3);
     while(ros::ok())
     {
         ros::spinOnce();
