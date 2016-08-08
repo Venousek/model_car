@@ -1,39 +1,42 @@
 <launch>
 
-  <param name="cam_w"                     type="int"    value="640"/>  
-  <param name="cam_h"                     type="int"    value="480"/>
+  
 
 
   <!--remap from="lane_model/lane_model_image" to="app/camera/rgb/image_raw" /-->
   <!--remap from="camera/ground_image_ipmapped" to="camera/rgb/image_raw" /-->
 
 
-  <node name="line_detection_fu_node" pkg="line_detection_fu" type="line_detection_fu_node" >  	
-  	<param name="proj_y_start"            	    type="int" 		value="410"/>
-  	<param name="proj_image_h"            	    type="int" 		value="40"/>
-  	<param name="proj_image_w"            	    type="int" 		value="80"/>
+  <node name="line_detection_fu_node" pkg="line_detection_fu" type="line_detection_fu_node" > 
+    <param name="cam_w"                         type="int"    value="1280"/>  
+    <param name="cam_h"                         type="int"    value="720"/> 	
+  	<param name="proj_y_start"            	    type="int" 		value="580"/>
+  	<param name="proj_image_h"            	    type="int" 		value="80"/>
+  	<param name="proj_image_w"            	    type="int" 		value="160"/>
   	<param name="proj_image_horizontal_offset"  type="int"    value="0"/>
-    <param name="roi_top_w"            	        type="int" 		value="66"/>
-  	<param name="roi_bottom_w"            	    type="int" 		value="32"/>
-    <param name="minYRoi"                       type="int"    value="5"/>
-    <param name="maxYDefaultRoi"                type="int"    value="39"/>
-    <param name="maxYPolyRoi"                   type="int"    value="39"/>
-    <param name="defaultXLeft"                  type="int"    value="4"/>
-    <param name="defaultXCenter"                type="int"    value="28"/>
-    <param name="defaultXRight"                 type="int"    value="52"/>
-    <param name="interestDistancePoly"          type="int"    value="11"/>
-    <param name="interestDistanceDefault"       type="int"    value="11"/>
+    <param name="roi_top_w"            	        type="int" 		value="160"/>
+  	<param name="roi_bottom_w"            	    type="int" 		value="86"/>
+    <param name="minYRoi"                       type="int"    value="0"/>
+    <param name="maxYDefaultRoi"                type="int"    value="79"/>
+    <param name="maxYPolyRoi"                   type="int"    value="79"/>
+    <param name="defaultXLeft"                  type="int"    value="12"/>
+    <param name="defaultXCenter"                type="int"    value="56"/>
+    <param name="defaultXRight"                 type="int"    value="100"/>
+    <param name="interestDistancePoly"          type="int"    value="10"/>
+    <param name="interestDistanceDefault"       type="int"    value="20"/>
     <param name="iterationsRansac"              type="int"    value="10"/>
     <param name="proportionThreshould"          type="double" value="0.5"/>
     <param name="m_gradientThreshold"           type="int"    value="10"/>
     <param name="m_nonMaxWidth"                 type="int"    value="10"/>
-    <param name="laneMarkingSquaredThreshold"   type="int"    value="25"/>
-    <param name="angleAdjacentLeg"              type="int"    value="25"/>
+    <param name="laneMarkingSquaredThreshold"   type="int"    value="36"/>
+    <param name="angleAdjacentLeg"              type="int"    value="70"/>
     <param name="scanlinesVerticalDistance"     type="int"    value="1"/>
     <param name="scanlinesMaxCount"             type="int"    value="100"/>
-    <param name="polyY1"                        type="int"    value="39"/>
-    <param name="polyY2"                        type="int"    value="35"/>    
-    <param name="polyY3"                        type="int"    value="30"/>    
+    <param name="polyY1"                        type="int"    value="75"/>
+    <param name="polyY2"                        type="int"    value="60"/>    
+    <param name="polyY3"                        type="int"    value="40"/>    
+    <param name="detectLaneStartX"              type="int"    value="75"/>
+    <param name="maxAngleDiff"                  type="int"    value="5"/>
   </node>
 
  

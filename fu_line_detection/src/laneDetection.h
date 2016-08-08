@@ -228,26 +228,25 @@ class cLaneDetectionFu
 
         int angleAdjacentLeg;
 
-        
+        int detectLaneStartX;
 
+        double lastAngle;
+
+        int maxAngleDiff;
+        
 
     public:
         
         void resetSystem();
 
-    	cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, int proj_y_start_,
-                int proj_image_h_, int proj_image_w_, int proj_image_horizontal_offset, int roi_top_w_, int roi_bottom_w_,
-                int minYRoi_, int maxYDefaultRoi_, int maxYPolyRoi_, int defaultXLeft_, int defaultXCenter_,
-                int defaultXRight_, int interestDistancePoly_, int interestDistanceDefault_, int iterationsRansac_,
-                double proportionThreshould_, int m_gradientThreshold_, int m_nonMaxWidth_, int laneMarkingSquaredThreshold_,
-                int angleAdjacentLeg_, int scanlinesVerticalDistance_, int scanlinesMaxCount_,
-                int polyY1_, int polyY2_, int polyY3_);
+    	cLaneDetectionFu(ros::NodeHandle nh);
+
     	virtual ~cLaneDetectionFu();
         int Init();
 
         void ProcessInput(const sensor_msgs::Image::ConstPtr& msg);
         
-        void pubRGBImageMsg(cv::Mat& rgb_mat);
+        void pubRGBImageMsg(cv::Mat& rgb_mat, image_transport::CameraPublisher publisher);
 
         void pubAngle();
 
@@ -281,7 +280,7 @@ class cLaneDetectionFu
 
         void createLanePoly(ePosition position);
 
-        void detectLane(int startX);
+        void detectLane();
 
         double gradient(double, std::vector<FuPoint<int>>&,
                 std::vector<double>);

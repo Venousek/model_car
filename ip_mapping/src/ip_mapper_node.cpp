@@ -121,8 +121,8 @@ int main(int argc, char **argv)
     double cam_h = 10;                        //height of camera
 
     nh.param<std::string>(node_name+"/camera_name", camera_name, "/usb_cam/image_raw"); 
-    nh.param<int>("cam_w", ow, 640); 
-    nh.param<int>("cam_h", oh, 480); 
+    nh.param<int>(node_name+"/ow", ow, 640); 
+    nh.param<int>(node_name+"/oh", oh, 480); 
     nh.param<double>(node_name+"/f_u", f_u, 624.650635); 
     nh.param<double>(node_name+"/f_v", f_v, 626.987244); 
     nh.param<double>(node_name+"/c_u", c_u, 309.703230); 

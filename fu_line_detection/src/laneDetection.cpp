@@ -9,6 +9,9 @@ static const uint32_t MY_ROS_QUEUE_SIZE = 1000;
 #define PI 3.14159265
 
 image_transport::CameraPublisher image_publisher;
+image_transport::CameraPublisher image_publisher_ransac;
+image_transport::CameraPublisher image_publisher_lane_markings;
+
 
 //msgs head
 unsigned int head_sequence_id = 0;
@@ -19,31 +22,55 @@ sensor_msgs::CameraInfoPtr rgb_camera_info;
 // try kernel width 5 for now
 const static int g_kernel1DWidth = 5;
 
-cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, int proj_y_start_,
-        int proj_image_h_, int proj_image_w_, int proj_image_horizontal_offset_, int roi_top_w_,
-        int roi_bottom_w_, int minYRoi_, int maxYDefaultRoi_, int maxYPolyRoi_, int defaultXLeft_, int defaultXCenter_,
-        int defaultXRight_, int interestDistancePoly_, int interestDistanceDefault_, int iterationsRansac_,
-        double proportionThreshould_, int m_gradientThreshold_, int m_nonMaxWidth_, int laneMarkingSquaredThreshold_,
-        int angleAdjacentLeg_, int scanlinesVerticalDistance_, int scanlinesMaxCount_,
-        int polyY1_, int polyY2_, int polyY3_)
+cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh)
     : nh_(nh), priv_nh_("~")
 {
+    std::string node_name = ros::this_node::getName();
 
-    cam_w = cam_w_;
-    cam_h = cam_h_;
+    ROS_ERROR("Node name: %s",node_name.c_str());
 
-    proj_y_start = proj_y_start_;
-    proj_image_h = proj_image_h_;
-    proj_image_w = proj_image_w_;
+    priv_nh_.param<int>(node_name+"/cam_w", cam_w, 640);
+    priv_nh_.param<int>(node_name+"/cam_h", cam_h, 480);
+    priv_nh_.param<int>(node_name+"/proj_y_start", proj_y_start, 415);
+    priv_nh_.param<int>(node_name+"/proj_image_h", proj_image_h, 40);
+    priv_nh_.param<int>(node_name+"/proj_image_w", proj_image_w, 80);
+    priv_nh_.param<int>(node_name+"/proj_image_horizontal_offset", proj_image_horizontal_offset, 0);
+    priv_nh_.param<int>(node_name+"/roi_top_w", roi_top_w, 62);
+    priv_nh_.param<int>(node_name+"/roi_bottom_w", roi_bottom_w, 30);
+    
+    priv_nh_.param<int>(node_name+"/minYRoi", minYRoi, 5);
+    priv_nh_.param<int>(node_name+"/maxYDefaultRoi", maxYDefaultRoi, 39);
+    priv_nh_.param<int>(node_name+"/maxYPolyRoi", maxYPolyRoi, 39);
+
+    priv_nh_.param<int>(node_name+"/defaultXLeft", defaultXLeft, 10);
+    priv_nh_.param<int>(node_name+"/defaultXCenter", defaultXCenter, 30);
+    priv_nh_.param<int>(node_name+"/defaultXRight", defaultXRight, 50);
+
+    priv_nh_.param<int>(node_name+"/interestDistancePoly", interestDistancePoly, 10);
+    priv_nh_.param<int>(node_name+"/interestDistanceDefault", interestDistanceDefault, 10);
+    
+    priv_nh_.param<int>(node_name+"/iterationsRansac", iterationsRansac, 10);
+    priv_nh_.param<double>(node_name+"/proportionThreshould", proportionThreshould, 0.5);
+    
+    priv_nh_.param<int>(node_name+"/m_gradientThreshold", m_gradientThreshold, 10);
+    priv_nh_.param<int>(node_name+"/m_nonMaxWidth", m_nonMaxWidth, 10);
+    priv_nh_.param<int>(node_name+"/laneMarkingSquaredThreshold", laneMarkingSquaredThreshold, 25);
+
+    priv_nh_.param<int>(node_name+"/angleAdjacentLeg", angleAdjacentLeg, 25);
+    
+    priv_nh_.param<int>(node_name+"/scanlinesVerticalDistance", scanlinesVerticalDistance, 1);
+    priv_nh_.param<int>(node_name+"/scanlinesMaxCount", scanlinesMaxCount, 100);
+
+    priv_nh_.param<int>(node_name+"/detectLaneStartX", detectLaneStartX, 38);
+
+    priv_nh_.param<int>(node_name+"/maxAngleDiff", maxAngleDiff, 10);
+
+    priv_nh_.param<int>(node_name+"/polyY1", polyY1, 35);
+    priv_nh_.param<int>(node_name+"/polyY2", polyY2, 30);
+    priv_nh_.param<int>(node_name+"/polyY3", polyY3, 15);
+
+
     proj_image_w_half = proj_image_w/2;
-    proj_image_horizontal_offset = proj_image_horizontal_offset_;
-
-    roi_top_w = roi_top_w_;
-    roi_bottom_w = roi_bottom_w_;
-
-    polyY1 = polyY1_;
-    polyY2 = polyY2_;
-    polyY3 = polyY3_;
 
     polyDetectedLeft     = false;
     polyDetectedCenter   = false;
@@ -76,28 +103,9 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, i
     lanePoly             = NewtonPolynomial();
     lanePolynomial       = LanePolynomial();
 
-    iterationsRansac     = iterationsRansac_;
-    proportionThreshould = proportionThreshould_;
+    maxDistance = 2;  
 
-    minYRoi        = minYRoi_;
-    maxYDefaultRoi = maxYDefaultRoi_;
-    maxYPolyRoi    = maxYPolyRoi_;
-
-    defaultXLeft = defaultXLeft_;
-    defaultXCenter = defaultXCenter_;
-    defaultXRight = defaultXRight_;
-
-    interestDistancePoly = interestDistancePoly_;
-    interestDistanceDefault = interestDistanceDefault_;    
-
-    m_gradientThreshold = m_gradientThreshold_;
-    m_nonMaxWidth = m_nonMaxWidth_;
-
-    laneMarkingSquaredThreshold = laneMarkingSquaredThreshold_;
-    angleAdjacentLeg = angleAdjacentLeg_;
-
-    scanlinesVerticalDistance = scanlinesVerticalDistance_;
-    scanlinesMaxCount = scanlinesMaxCount_;
+    lastAngle = 0; 
 
     head_time_stamp = ros::Time::now();
     
@@ -109,6 +117,10 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh, int cam_w_, int cam_h_, i
     image_transport::ImageTransport image_transport(nh);
     
     image_publisher = image_transport.advertiseCamera("/lane_model/lane_model_image", 1);
+    image_publisher_ransac = image_transport.advertiseCamera("/lane_model/ransac", 1);
+    image_publisher_lane_markings = image_transport.advertiseCamera("/lane_model/lane_markings", 1);
+
+
 
     if (!rgb_camera_info)
     {
@@ -168,17 +180,12 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
     
     cv::Mat image = cv_ptr->image.clone();
     
-    cv::Mat imgFlipped;
-
-    cv::flip(image, imgFlipped, 0);
-
-    //imgFlipped.convertTo(imgFlipped, CV_8U, 1.0/256.0);
+    cv::flip(image, image, 0);
 
     //cv::imshow("Original IPmapped image", imgFlipped);
     //cv::waitKey(1);
 
-
-    cv::Mat transformedImage = imgFlipped(cv::Rect((cam_w/2)-proj_image_w_half+proj_image_horizontal_offset,
+    cv::Mat transformedImage = image(cv::Rect((cam_w/2)-proj_image_w_half+proj_image_horizontal_offset,
             proj_y_start,proj_image_w,proj_image_h)).clone();
 
     //cv::imshow("Cut IPmapped image", transformedImage);   
@@ -253,7 +260,6 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
     buildLaneMarkingsLists(laneMarkings);
 
     //---------------------- DEBUG OUTPUT GROUPED LANE MARKINGS ---------------------------------//
-    #ifdef PAINT_OUTPUT
         transformedImagePaintable = transformedImage.clone();
         cv::cvtColor(transformedImagePaintable,transformedImagePaintable,CV_GRAY2BGR);
         for(int i = 0; i < (int)laneMarkingsLeft.size(); i++)
@@ -287,7 +293,10 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
         cv::Point2d p2r(defaultXRight,maxYPolyRoi-1);
         cv::line(transformedImagePaintable,p1r,p2r,cv::Scalar(255,0,0));
 
+    pubRGBImageMsg(transformedImagePaintable, image_publisher_lane_markings);
 
+
+    #ifdef PAINT_OUTPUT
         cv::imshow("Grouped Lane Markings", transformedImagePaintable);
         cv::waitKey(1);
     #endif
@@ -296,30 +305,32 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
     ransac();
 
     //---------------------- DEBUG OUTPUT RANSAC POLYNOMIALS ---------------------------------//
-    #ifdef PAINT_OUTPUT
-        transformedImagePaintable = transformedImage.clone();
-        cv::cvtColor(transformedImagePaintable,transformedImagePaintable,CV_GRAY2BGR);
+        cv::Mat transformedImagePaintableRansac = transformedImage.clone();
+        cv::cvtColor(transformedImagePaintableRansac,transformedImagePaintableRansac,CV_GRAY2BGR);
         for(int i = minYRoi; i < maxYPolyRoi; i++)
         {
             cv::Point pointLocLeft = cv::Point(polyLeft.at(i), i);
-            cv::circle(transformedImagePaintable,pointLocLeft,0,cv::Scalar(0,0,255),-1);
+            cv::circle(transformedImagePaintableRansac,pointLocLeft,0,cv::Scalar(0,0,255),-1);
             cv::Point pointLocCenter = cv::Point(polyCenter.at(i), i);
-            cv::circle(transformedImagePaintable,pointLocCenter,0,cv::Scalar(0,255,0),-1);
+            cv::circle(transformedImagePaintableRansac,pointLocCenter,0,cv::Scalar(0,255,0),-1);
             cv::Point pointLocRight = cv::Point(polyRight.at(i), i);
-            cv::circle(transformedImagePaintable,pointLocRight,0,cv::Scalar(255,0,0),-1);
+            cv::circle(transformedImagePaintableRansac,pointLocRight,0,cv::Scalar(255,0,0),-1);
         }
 
-        cv::imshow("RANSAC results", transformedImagePaintable);
+    pubRGBImageMsg(transformedImagePaintableRansac, image_publisher_ransac);
+
+    #ifdef PAINT_OUTPUT
+        cv::imshow("RANSAC results", transformedImagePaintableRansac);
         cv::waitKey(1);
     #endif
     //---------------------- END DEBUG OUTPUT RANSAC POLYNOMIALS ------------------------------//
 
-    detectLane(38);
+    detectLane();
 
     pubAngle();
 
-    transformedImagePaintable = transformedImage.clone();
-    cv::cvtColor(transformedImagePaintable,transformedImagePaintable,CV_GRAY2BGR);
+    cv::Mat transformedImagePaintableLaneModel = transformedImage.clone();
+    cv::cvtColor(transformedImagePaintableLaneModel,transformedImagePaintableLaneModel,CV_GRAY2BGR);
 
     if (lanePolynomial.hasDetected()) {
         int r = lanePolynomial.getLastUsedPosition() == LEFT ? 255 : 0;
@@ -330,7 +341,7 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
         for(int i = minYRoi; i < maxYPolyRoi; i++)
         {
             cv::Point pointLoc = cv::Point(lanePolynomial.getLanePoly().at(i)+proj_image_w_half, i);
-            cv::circle(transformedImagePaintable,pointLoc,0,cv::Scalar(b,g,r),-1);
+            cv::circle(transformedImagePaintableLaneModel,pointLoc,0,cv::Scalar(b,g,r),-1);
         }     
 
         std::vector<FuPoint<int>> supps = lanePolynomial.getLastUsedPosition() == LEFT 
@@ -341,19 +352,19 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
         {         
             FuPoint<int> supp = supps[i];
             cv::Point suppLoc = cv::Point(supp.getX(), supp.getY());
-            cv::circle(transformedImagePaintable,suppLoc,1,cv::Scalar(b,g,r),-1);         
+            cv::circle(transformedImagePaintableLaneModel,suppLoc,1,cv::Scalar(b,g,r),-1);         
         }     
     } else {
         cv::Point pointLoc = cv::Point(5,5);
-        cv::circle(transformedImagePaintable,pointLoc,3,cv::Scalar(0,0,255),0);
+        cv::circle(transformedImagePaintableLaneModel,pointLoc,3,cv::Scalar(0,0,255),0);
     }
 
-    pubRGBImageMsg(transformedImagePaintable);
+    pubRGBImageMsg(transformedImagePaintableLaneModel, image_publisher);
 
     //---------------------- DEBUG OUTPUT LANE POLYNOMIAL ---------------------------------//
     #ifdef PAINT_OUTPUT
         
-        cv::imshow("Lane polynomial", transformedImagePaintable);
+        cv::imshow("Lane polynomial", transformedImagePaintableLaneModel);
         cv::waitKey(1);
     #endif
     //---------------------- END DEBUG OUTPUT LANE POLYNOMIAL ------------------------------//
@@ -1046,7 +1057,9 @@ void cLaneDetectionFu::createLanePoly(ePosition position) {
  *
  * @param startX    The x-value, starting from which we compare the detected polys
  */
-void cLaneDetectionFu::detectLane(int startX) {
+void cLaneDetectionFu::detectLane() {
+    int startX = detectLaneStartX;
+
     if (polyDetectedLeft && !polyDetectedCenter && !polyDetectedRight) {
         createLanePoly(LEFT);
     }
@@ -1065,7 +1078,7 @@ void cLaneDetectionFu::detectLane(int startX) {
                 polyCenter.getCoefficients(), gradLeft);
 
         if (gradientsSimilar(gradLeft, gradCenter)) {
-            createLanePoly(LEFT);
+            createLanePoly(CENTER);
         }
         else {
             if (bestPolyLeft.second >= bestPolyCenter.second) {
@@ -1105,7 +1118,7 @@ void cLaneDetectionFu::detectLane(int startX) {
                 polyRight.getCoefficients(), gradLeft);
 
         if (gradientsSimilar(gradLeft, gradRight)) {
-            createLanePoly(LEFT);
+            createLanePoly(RIGHT);
         }
         else {
             if (bestPolyLeft.second >= bestPolyRight.second) {
@@ -1117,6 +1130,52 @@ void cLaneDetectionFu::detectLane(int startX) {
         }
     }
     else if (polyDetectedLeft && polyDetectedCenter && polyDetectedRight) {
+        double gradRight = gradient(startX, pointsRight,
+                polyRight.getCoefficients());
+
+        double gradCenter2 = gradient(startX, pointsCenter,
+                polyCenter.getCoefficients());
+
+        double gradCenter1 = nextGradient(startX, polyRight, pointsRight,
+                pointsCenter, polyRight.getCoefficients(),
+                polyCenter.getCoefficients(), gradRight);
+
+        //double gradLeft1 = nextGradient(startX, polyRight, pointsRight,
+        //        pointsLeft, polyRight.getCoefficients(),
+        //        polyLeft.getCoefficients(), gradRight);
+
+        double gradLeft2 = nextGradient(startX, polyCenter, pointsCenter,
+                pointsLeft, polyCenter.getCoefficients(),
+                polyLeft.getCoefficients(), gradCenter2);
+
+        if (gradientsSimilar(gradRight, gradCenter1)) {
+            // ?!
+            //if (gradientsSimilar(gradCenter1, gradLeft1)) {
+                createLanePoly(RIGHT);
+            //}
+            //else {
+            //    createLanePoly(RIGHT);
+            //}
+        }
+        else {
+            if (gradientsSimilar(gradCenter2, gradLeft2)) {
+                createLanePoly(CENTER);
+            }
+            else {
+                //ROS_ERROR("Creating lane according to max proportion.");
+                ePosition maxPos = maxProportion();
+                
+                createLanePoly(maxPos);         
+            }
+        }
+
+
+
+
+
+
+
+/*
         double gradLeft = gradient(startX, pointsLeft,
                 polyLeft.getCoefficients());
 
@@ -1136,6 +1195,7 @@ void cLaneDetectionFu::detectLane(int startX) {
                 polyRight.getCoefficients(), gradCenter2);
 
         if (gradientsSimilar(gradLeft, gradCenter1)) {
+            // ?!
             if (gradientsSimilar(gradCenter1, gradRight1)) {
                 createLanePoly(LEFT);
             }
@@ -1159,7 +1219,7 @@ void cLaneDetectionFu::detectLane(int startX) {
                     createLanePoly(RIGHT);
                 }
             }
-        }
+        }*/
     }
     else if (!polyDetectedLeft && !polyDetectedCenter && !polyDetectedRight) {
         lanePoly.clear();
@@ -1421,7 +1481,7 @@ bool cLaneDetectionFu::polyValid(ePosition position, NewtonPolynomial poly,
 
 
 
-void cLaneDetectionFu::pubRGBImageMsg(cv::Mat& rgb_mat)
+void cLaneDetectionFu::pubRGBImageMsg(cv::Mat& rgb_mat, image_transport::CameraPublisher publisher)
 {
     sensor_msgs::ImagePtr rgb_img(new sensor_msgs::Image);
 
@@ -1445,13 +1505,23 @@ void cLaneDetectionFu::pubRGBImageMsg(cv::Mat& rgb_mat)
     rgb_camera_info->header.stamp = head_time_stamp;
     rgb_camera_info->header.seq = head_sequence_id;
 
-    image_publisher.publish(rgb_img, rgb_camera_info);
+    publisher.publish(rgb_img, rgb_camera_info);
 }
 
 void cLaneDetectionFu::pubAngle()
 {
     double oppositeLeg = lanePolynomial.getLanePoly().at(proj_image_h-angleAdjacentLeg);    
     double result = atan (oppositeLeg/angleAdjacentLeg) * 180 / PI;
+
+    if (std::abs(result - lastAngle) > maxAngleDiff) {
+        if (result - lastAngle > 0) {
+            result = lastAngle + maxAngleDiff;
+        } else {
+            result = lastAngle - maxAngleDiff;
+        }
+    }
+
+    lastAngle = result;
 
     std_msgs::Float32 angleMsg;
 
@@ -1466,84 +1536,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "cLaneDetectionFu");
     ros::NodeHandle nh;
 
-    std::string node_name = ros::this_node::getName();
-
-    ROS_ERROR("Node name: %s",node_name.c_str());
-
-    int cam_w;
-    int cam_h;
-    int proj_y_start;
-    int proj_image_h;
-    int proj_image_w;
-    int proj_image_horizontal_offset;
-    int roi_top_w;
-    int roi_bottom_w;
-    int minYRoi;
-    int maxYDefaultRoi;
-    int maxYPolyRoi;
-    int defaultXLeft;
-    int defaultXCenter;
-    int defaultXRight;
-    int interestDistancePoly;
-    int interestDistanceDefault;
-    int iterationsRansac;
-    double proportionThreshould;
-    int m_gradientThreshold;
-    int m_nonMaxWidth;
-    int laneMarkingSquaredThreshold;
-    int angleAdjacentLeg;
-    int scanlinesVerticalDistance;
-    int scanlinesMaxCount;
-
-    int polyY1;
-    int polyY2;
-    int polyY3;
-
-
-    //nh.param<std::string>("camera_name", camera_name, "/usb_cam/image_raw"); 
-    nh.param<int>("cam_w", cam_w, 640);
-    nh.param<int>("cam_h", cam_h, 480);
-    nh.param<int>(node_name+"/proj_y_start", proj_y_start, 415);
-    nh.param<int>(node_name+"/proj_image_h", proj_image_h, 40);
-    nh.param<int>(node_name+"/proj_image_w", proj_image_w, 80);
-    nh.param<int>(node_name+"/proj_image_horizontal_offset", proj_image_horizontal_offset, 0);
-    nh.param<int>(node_name+"/roi_top_w", roi_top_w, 62);
-    nh.param<int>(node_name+"/roi_bottom_w", roi_bottom_w, 30);
-    
-    nh.param<int>(node_name+"/minYRoi", minYRoi, 5);
-    nh.param<int>(node_name+"/maxYDefaultRoi", maxYDefaultRoi, 39);
-    nh.param<int>(node_name+"/maxYPolyRoi", maxYPolyRoi, 39);
-
-    nh.param<int>(node_name+"/defaultXLeft", defaultXLeft, 10);
-    nh.param<int>(node_name+"/defaultXCenter", defaultXCenter, 30);
-    nh.param<int>(node_name+"/defaultXRight", defaultXRight, 50);
-
-    nh.param<int>(node_name+"/interestDistancePoly", interestDistancePoly, 10);
-    nh.param<int>(node_name+"/interestDistanceDefault", interestDistanceDefault, 10);
-    
-    nh.param<int>(node_name+"/iterationsRansac", iterationsRansac, 10);
-    nh.param<double>(node_name+"/proportionThreshould", proportionThreshould, 0.5);
-    
-    nh.param<int>(node_name+"/m_gradientThreshold", m_gradientThreshold, 10);
-    nh.param<int>(node_name+"/m_nonMaxWidth", m_nonMaxWidth, 10);
-    nh.param<int>(node_name+"/laneMarkingSquaredThreshold", laneMarkingSquaredThreshold, 25);
-
-    nh.param<int>(node_name+"/angleAdjacentLeg", angleAdjacentLeg, 25);
-    
-    nh.param<int>(node_name+"/scanlinesVerticalDistance", scanlinesVerticalDistance, 1);
-    nh.param<int>(node_name+"/scanlinesMaxCount", scanlinesMaxCount, 100);
-
-    nh.param<int>(node_name+"/polyY1", polyY1, 35);
-    nh.param<int>(node_name+"/polyY2", polyY2, 30);
-    nh.param<int>(node_name+"/polyY3", polyY1, 15);
-
-
-
-    cLaneDetectionFu node(nh, cam_w, cam_h, proj_y_start, proj_image_h, proj_image_w, proj_image_horizontal_offset,
-        roi_top_w, roi_bottom_w, minYRoi, maxYDefaultRoi, maxYPolyRoi, defaultXLeft, defaultXCenter,
-        defaultXRight, interestDistancePoly, interestDistanceDefault, iterationsRansac, proportionThreshould,
-        m_gradientThreshold, m_nonMaxWidth, laneMarkingSquaredThreshold, angleAdjacentLeg, scanlinesVerticalDistance,
-        scanlinesMaxCount, polyY1, polyY2, polyY3);
+    cLaneDetectionFu node(nh);
     while(ros::ok())
     {
         ros::spinOnce();
