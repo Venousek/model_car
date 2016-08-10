@@ -31,8 +31,8 @@
   <arg name="enable_pointcloud"               default="true" />
   <arg name="depth_height"                    default="480" />
   <arg name="depth_width"                     default="640" />
-  <arg name="color_width"		      default="640" />
-  <arg name="color_height"		      default="480"  />
+  <arg name="color_width"		      default="1280" />
+  <arg name="color_height"		      default="720"  />
   <!-- Processing Modules -->
   <arg name="rgb_processing"                  default="true"/>
   <arg name="ir_processing"                   default="false"/>

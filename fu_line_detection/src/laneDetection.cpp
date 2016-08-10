@@ -2,7 +2,8 @@
 
 using namespace std;
 
-#define PAINT_OUTPUT
+//#define PAINT_OUTPUT
+#define PUBLISH_DEBUG_OUTPUT
 
 static const uint32_t MY_ROS_QUEUE_SIZE = 1000;
 
@@ -117,8 +118,11 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh)
     image_transport::ImageTransport image_transport(nh);
     
     image_publisher = image_transport.advertiseCamera("/lane_model/lane_model_image", 1);
-    image_publisher_ransac = image_transport.advertiseCamera("/lane_model/ransac", 1);
-    image_publisher_lane_markings = image_transport.advertiseCamera("/lane_model/lane_markings", 1);
+
+    #ifdef PUBLISH_DEBUG_OUTPUT
+        image_publisher_ransac = image_transport.advertiseCamera("/lane_model/ransac", 1);
+        image_publisher_lane_markings = image_transport.advertiseCamera("/lane_model/lane_markings", 1);
+    #endif
 
 
 
@@ -134,17 +138,6 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh)
     //the outer vector represents rows on image, inner vector is vector of line segments of one row, usualy just one line segment
     //we should generate this only once in the beginning! or even just have it pregenerated for our cam
     scanlines = getScanlines();
-
-
-    /*ROS_ERROR_STREAM(scanlines.size() << " scanlines generated.");
-
-    for(int i=0; i<scanlines.size(); ++i) {
-        ROS_ERROR_STREAM(scanlines[i].size() << " LineSegment in scanline.");
-        for(int j=0; j<scanlines[i].size(); ++j) {
-            ROS_ERROR_STREAM(scanlines[i][j].getStart() << " is start.");
-            ROS_ERROR_STREAM(scanlines[i][j].getEnd() << " is end.");
-        }
-    }*/
 }
 
 cLaneDetectionFu::~cLaneDetectionFu()
@@ -173,20 +166,21 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
     supportersCenter.clear();
     supportersRight.clear();
 
-    //use ROS image_proc or opencv instead of ip mapper
+    //use ROS image_proc or opencv instead of ip mapper?
 
     cv_bridge::CvImagePtr cv_ptr;
     cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::MONO8);
     
     cv::Mat image = cv_ptr->image.clone();
     
-    cv::flip(image, image, 0);
 
     //cv::imshow("Original IPmapped image", imgFlipped);
     //cv::waitKey(1);
 
     cv::Mat transformedImage = image(cv::Rect((cam_w/2)-proj_image_w_half+proj_image_horizontal_offset,
             proj_y_start,proj_image_w,proj_image_h)).clone();
+    
+    cv::flip(transformedImage, transformedImage, 0);
 
     //cv::imshow("Cut IPmapped image", transformedImage);   
     //cv::waitKey(1);
@@ -230,7 +224,6 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
 
 
         cv::imshow("ROI, scanlines and edges", transformedImagePaintable);
-        //cv::imshow("Original image", image);
         cv::waitKey(1);
     #endif
     //---------------------- END DEBUG OUTPUT EDGES ------------------------------//
@@ -260,6 +253,7 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
     buildLaneMarkingsLists(laneMarkings);
 
     //---------------------- DEBUG OUTPUT GROUPED LANE MARKINGS ---------------------------------//
+    #ifdef PUBLISH_DEBUG_OUTPUT
         transformedImagePaintable = transformedImage.clone();
         cv::cvtColor(transformedImagePaintable,transformedImagePaintable,CV_GRAY2BGR);
         for(int i = 0; i < (int)laneMarkingsLeft.size(); i++)
@@ -300,11 +294,13 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
         cv::imshow("Grouped Lane Markings", transformedImagePaintable);
         cv::waitKey(1);
     #endif
+    #endif
     //---------------------- END DEBUG OUTPUT GROUPED LANE MARKINGS ------------------------------//
 
     ransac();
 
     //---------------------- DEBUG OUTPUT RANSAC POLYNOMIALS ---------------------------------//
+    #ifdef PUBLISH_DEBUG_OUTPUT
         cv::Mat transformedImagePaintableRansac = transformedImage.clone();
         cv::cvtColor(transformedImagePaintableRansac,transformedImagePaintableRansac,CV_GRAY2BGR);
         for(int i = minYRoi; i < maxYPolyRoi; i++)
@@ -322,6 +318,7 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
     #ifdef PAINT_OUTPUT
         cv::imshow("RANSAC results", transformedImagePaintableRansac);
         cv::waitKey(1);
+    #endif
     #endif
     //---------------------- END DEBUG OUTPUT RANSAC POLYNOMIALS ------------------------------//
 
@@ -909,9 +906,9 @@ ePosition cLaneDetectionFu::maxProportion() {
 void cLaneDetectionFu::createLanePoly(ePosition position) {
     lanePoly.clear();
 
-    double x1 = polyY1;
-    double x2 = polyY2;
-    double x3 = polyY3;
+    double x1 = 5;
+    double x2 = proj_image_h/2;
+    double x3 = proj_image_h-5;
 
     FuPoint<double> pointRight1;
     FuPoint<double> pointRight2;
@@ -1435,23 +1432,23 @@ bool cLaneDetectionFu::ransacInternal(ePosition position,
 bool cLaneDetectionFu::polyValid(ePosition position, NewtonPolynomial poly,
         NewtonPolynomial prevPoly) {
 
-    FuPoint<int> p1 = FuPoint<int>(poly.at(polyY1), polyY1);
+    FuPoint<int> p1 = FuPoint<int>(poly.at(polyY1), polyY1);    //y = 75
 
-    if (horizDistanceToDefaultLine(position, p1) > 6) {
+    if (horizDistanceToDefaultLine(position, p1) > 10) {
         //ROS_INFO("Poly was to far away from default line at y = 25");
         return false;
     }
 
-    FuPoint<int> p2 = FuPoint<int>(poly.at(polyY2), polyY2);
+    FuPoint<int> p2 = FuPoint<int>(poly.at(polyY2), polyY2);    //y = 60
 
-    if (horizDistanceToDefaultLine(position, p2) > 8) {
+    if (horizDistanceToDefaultLine(position, p2) > 20) {
         //ROS_INFO("Poly was to far away from default line at y = 25");
         return false;
     }
 
-    FuPoint<int> p3 = FuPoint<int>(poly.at(polyY3), polyY3);
+    FuPoint<int> p3 = FuPoint<int>(poly.at(polyY3), polyY3);    //y = 40
 
-    if (horizDistanceToDefaultLine(position, p3) > 12) {
+    if (horizDistanceToDefaultLine(position, p3) > 40) {
         //ROS_INFO("Poly was to far away from default line at y = 30");
         return false;
     }
@@ -1460,7 +1457,7 @@ bool cLaneDetectionFu::polyValid(ePosition position, NewtonPolynomial poly,
         FuPoint<int> p4 = FuPoint<int>(poly.at(polyY1), polyY1);
         FuPoint<int> p5 = FuPoint<int>(prevPoly.at(polyY1), polyY1);
 
-        if (horizDistance(p4, p5) > 3) {//0.05 * meters) {
+        if (horizDistance(p4, p5) > 5) {//0.05 * meters) {
             //ROS_INFO("Poly was to far away from previous poly at y = 25");
             return false;
         }
@@ -1468,7 +1465,7 @@ bool cLaneDetectionFu::polyValid(ePosition position, NewtonPolynomial poly,
         FuPoint<int> p6 = FuPoint<int>(poly.at(polyY2), polyY2);
         FuPoint<int> p7 = FuPoint<int>(prevPoly.at(polyY2), polyY2);
 
-        if (horizDistance(p6, p7) > 3) {//0.05 * meters) {
+        if (horizDistance(p6, p7) > 5) {//0.05 * meters) {
             //ROS_INFO("Poly was to far away from previous poly at y = 30");
             return false;
         }
