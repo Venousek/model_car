@@ -55,6 +55,8 @@ THIS SOFTWARE IS PROVIDED BY AUDI AG AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR
 #include "tools/NewtonPolynomial.h"
 #include "tools/LanePolynomial.h"
 #include "tools/enums.h"
+#include "tools/IPMapper.h"
+
 
 using namespace std;
 
@@ -77,6 +79,9 @@ class cLaneDetectionFu
         //ros::Publisher publish_curvature;
         ros::Publisher publish_angle;
 
+        IPMapper ipMapper;
+
+        std::string camera_name;
         
         int cam_w;
         int cam_h;
@@ -144,18 +149,18 @@ class cLaneDetectionFu
          * The minimal y of the ROIs. Points with smaller y-Values are not
          * used in RANSAC.
          */
-        int minYRoi;
+        int maxYRoi;
 
         /**
          * The maximal y of default ROIs. Points with bigger y-Values are not used.
          */
-        int maxYDefaultRoi;
+        int minYDefaultRoi;
 
         /**
          * The maximal y of the polynomial ROIs. Points with bigger y-Values are not
          * used.
          */
-        int maxYPolyRoi;
+        int minYPolyRoi;
 
         /**
          * The minimal proportion of supporters of all points within a ROI.

@@ -86,9 +86,11 @@ void online_IPM::publish_remapper(const sensor_msgs::Image::ConstPtr& msg)
     try
     {
         cv_bridge::CvImagePtr cv_ptr;
-        cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::MONO8);    
+        cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::MONO8);
+        Mat original_image = cv_ptr->image;
+        Mat cut_image = original_image(cv::Rect(0,240,640,240));
         Mat remapped_image;
-        remapped_image=ipMapper.remap(cv_ptr->image);
+        remapped_image=ipMapper.remap(cut_image);
 
          #ifdef PAINT_OUTPUT //3ms
              cv::imshow("IPMapped image", remapped_image);

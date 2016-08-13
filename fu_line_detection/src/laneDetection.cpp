@@ -2,7 +2,7 @@
 
 using namespace std;
 
-//#define PAINT_OUTPUT
+#define PAINT_OUTPUT
 #define PUBLISH_DEBUG_OUTPUT
 
 static const uint32_t MY_ROS_QUEUE_SIZE = 1000;
@@ -30,6 +30,8 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh)
 
     ROS_ERROR("Node name: %s",node_name.c_str());
 
+    priv_nh_.param<std::string>(node_name+"/camera_name", camera_name, "/usb_cam/image_raw"); 
+
     priv_nh_.param<int>(node_name+"/cam_w", cam_w, 640);
     priv_nh_.param<int>(node_name+"/cam_h", cam_h, 480);
     priv_nh_.param<int>(node_name+"/proj_y_start", proj_y_start, 415);
@@ -39,9 +41,9 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh)
     priv_nh_.param<int>(node_name+"/roi_top_w", roi_top_w, 62);
     priv_nh_.param<int>(node_name+"/roi_bottom_w", roi_bottom_w, 30);
     
-    priv_nh_.param<int>(node_name+"/minYRoi", minYRoi, 5);
-    priv_nh_.param<int>(node_name+"/maxYDefaultRoi", maxYDefaultRoi, 39);
-    priv_nh_.param<int>(node_name+"/maxYPolyRoi", maxYPolyRoi, 39);
+    priv_nh_.param<int>(node_name+"/maxYRoi", maxYRoi, 5);
+    priv_nh_.param<int>(node_name+"/minYDefaultRoi", minYDefaultRoi, 39);
+    priv_nh_.param<int>(node_name+"/minYPolyRoi", minYPolyRoi, 39);
 
     priv_nh_.param<int>(node_name+"/defaultXLeft", defaultXLeft, 10);
     priv_nh_.param<int>(node_name+"/defaultXCenter", defaultXCenter, 30);
@@ -69,6 +71,25 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh)
     priv_nh_.param<int>(node_name+"/polyY1", polyY1, 35);
     priv_nh_.param<int>(node_name+"/polyY2", polyY2, 30);
     priv_nh_.param<int>(node_name+"/polyY3", polyY3, 15);
+
+
+    double f_u;
+    double f_v;
+    double c_u;
+    double c_v;
+    double cam_deg;
+    double cam_height;
+    int cam_h_half = cam_h/2;
+
+    priv_nh_.param<double>(node_name+"/f_u", f_u, 624.650635); 
+    priv_nh_.param<double>(node_name+"/f_v", f_v, 626.987244); 
+    priv_nh_.param<double>(node_name+"/c_u", c_u, 309.703230); 
+    priv_nh_.param<double>(node_name+"/c_v", c_v, 231.473613); 
+    priv_nh_.param<double>(node_name+"/cam_deg", cam_deg, 27); 
+    priv_nh_.param<double>(node_name+"/cam_height", cam_height, 18);
+
+    ipMapper = IPMapper(cam_w, cam_h_half, f_u, f_v, c_u, c_v, cam_deg, cam_height);
+
 
 
     proj_image_w_half = proj_image_w/2;
@@ -110,18 +131,18 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh)
 
     head_time_stamp = ros::Time::now();
     
-    read_images_ = nh.subscribe(nh_.resolveName("/camera/ground_image_ipmapped"), 1,&cLaneDetectionFu::ProcessInput,this);
+    read_images_ = nh.subscribe(nh_.resolveName(camera_name), MY_ROS_QUEUE_SIZE, &cLaneDetectionFu::ProcessInput,this);
 
     //publish_curvature = nh.advertise<std_msgs::Float32>("/lane_model/curvature", MY_ROS_QUEUE_SIZE);
     publish_angle = nh.advertise<std_msgs::Float32>("/lane_model/angle", MY_ROS_QUEUE_SIZE);
 
     image_transport::ImageTransport image_transport(nh);
     
-    image_publisher = image_transport.advertiseCamera("/lane_model/lane_model_image", 1);
+    image_publisher = image_transport.advertiseCamera("/lane_model/lane_model_image", MY_ROS_QUEUE_SIZE);
 
     #ifdef PUBLISH_DEBUG_OUTPUT
-        image_publisher_ransac = image_transport.advertiseCamera("/lane_model/ransac", 1);
-        image_publisher_lane_markings = image_transport.advertiseCamera("/lane_model/lane_markings", 1);
+        image_publisher_ransac = image_transport.advertiseCamera("/lane_model/ransac", MY_ROS_QUEUE_SIZE);
+        image_publisher_lane_markings = image_transport.advertiseCamera("/lane_model/lane_markings", MY_ROS_QUEUE_SIZE);
     #endif
 
 
@@ -172,12 +193,16 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
     cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::MONO8);
     
     cv::Mat image = cv_ptr->image.clone();
+
+    Mat cut_image = image(cv::Rect(0,cam_h/2,cam_w,cam_h/2));
+    Mat remapped_image = ipMapper.remap(cut_image);
     
+    #ifdef PAINT_OUTPUT
+        cv::imshow("IPmapped image", remapped_image);
+        cv::waitKey(1);
+    #endif
 
-    //cv::imshow("Original IPmapped image", imgFlipped);
-    //cv::waitKey(1);
-
-    cv::Mat transformedImage = image(cv::Rect((cam_w/2)-proj_image_w_half+proj_image_horizontal_offset,
+    cv::Mat transformedImage = remapped_image(cv::Rect((cam_w/2)-proj_image_w_half+proj_image_horizontal_offset,
             proj_y_start,proj_image_w,proj_image_h)).clone();
     
     cv::flip(transformedImage, transformedImage, 0);
@@ -205,14 +230,14 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
             }            
         }
 
-        cv::Point2d p1(proj_image_w_half-(roi_bottom_w/2),maxYPolyRoi-1);
-        cv::Point2d p2(proj_image_w_half+(roi_bottom_w/2),maxYPolyRoi-1);
-        cv::Point2d p3(proj_image_w_half+(roi_top_w/2),minYRoi);
-        cv::Point2d p4(proj_image_w_half-(roi_top_w/2),minYRoi);
+        /*cv::Point2d p1(proj_image_w_half-(roi_bottom_w/2),maxYRoi-1);
+        cv::Point2d p2(proj_image_w_half+(roi_bottom_w/2),maxYRoi-1);
+        cv::Point2d p3(proj_image_w_half+(roi_top_w/2),minYPolyRoi);
+        cv::Point2d p4(proj_image_w_half-(roi_top_w/2),minYPolyRoi);
         cv::line(transformedImagePaintable,p1,p2,cv::Scalar(0,200,0));
         cv::line(transformedImagePaintable,p2,p3,cv::Scalar(0,200,0));
         cv::line(transformedImagePaintable,p3,p4,cv::Scalar(0,200,0));
-        cv::line(transformedImagePaintable,p4,p1,cv::Scalar(0,200,0));
+        cv::line(transformedImagePaintable,p4,p1,cv::Scalar(0,200,0));*/
 
         /*for(int i = 0; i < (int)scanlines.size(); i++)
         {         
@@ -275,19 +300,28 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
             cv::circle(transformedImagePaintable,markingLoc,1,cv::Scalar(255,0,0),-1);         
         }
 
-        cv::Point2d p1l(defaultXLeft,minYRoi);
-        cv::Point2d p2l(defaultXLeft,maxYPolyRoi-1);
+        cv::Point2d p1l(defaultXLeft,minYPolyRoi);
+        cv::Point2d p2l(defaultXLeft,maxYRoi-1);
         cv::line(transformedImagePaintable,p1l,p2l,cv::Scalar(0,0,255));
 
-        cv::Point2d p1c(defaultXCenter,minYRoi);
-        cv::Point2d p2c(defaultXCenter,maxYPolyRoi-1);
+        cv::Point2d p1c(defaultXCenter,minYPolyRoi);
+        cv::Point2d p2c(defaultXCenter,maxYRoi-1);
         cv::line(transformedImagePaintable,p1c,p2c,cv::Scalar(0,255,0));
 
-        cv::Point2d p1r(defaultXRight,minYRoi);
-        cv::Point2d p2r(defaultXRight,maxYPolyRoi-1);
+        cv::Point2d p1r(defaultXRight,minYPolyRoi);
+        cv::Point2d p2r(defaultXRight,maxYRoi-1);
         cv::line(transformedImagePaintable,p1r,p2r,cv::Scalar(255,0,0));
 
-    pubRGBImageMsg(transformedImagePaintable, image_publisher_lane_markings);
+        cv::Point2d p1(proj_image_w_half-(roi_bottom_w/2),maxYRoi-1);
+        cv::Point2d p2(proj_image_w_half+(roi_bottom_w/2),maxYRoi-1);
+        cv::Point2d p3(proj_image_w_half+(roi_top_w/2),minYPolyRoi);
+        cv::Point2d p4(proj_image_w_half-(roi_top_w/2),minYPolyRoi);
+        cv::line(transformedImagePaintable,p1,p2,cv::Scalar(0,200,0));
+        cv::line(transformedImagePaintable,p2,p3,cv::Scalar(0,200,0));
+        cv::line(transformedImagePaintable,p3,p4,cv::Scalar(0,200,0));
+        cv::line(transformedImagePaintable,p4,p1,cv::Scalar(0,200,0));
+
+        pubRGBImageMsg(transformedImagePaintable, image_publisher_lane_markings);
 
 
     #ifdef PAINT_OUTPUT
@@ -303,7 +337,7 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
     #ifdef PUBLISH_DEBUG_OUTPUT
         cv::Mat transformedImagePaintableRansac = transformedImage.clone();
         cv::cvtColor(transformedImagePaintableRansac,transformedImagePaintableRansac,CV_GRAY2BGR);
-        for(int i = minYRoi; i < maxYPolyRoi; i++)
+        for(int i = minYPolyRoi; i < maxYRoi; i++)
         {
             cv::Point pointLocLeft = cv::Point(polyLeft.at(i), i);
             cv::circle(transformedImagePaintableRansac,pointLocLeft,0,cv::Scalar(0,0,255),-1);
@@ -335,7 +369,7 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
         int b = lanePolynomial.getLastUsedPosition() == RIGHT ? 255 : 0;
 
         
-        for(int i = minYRoi; i < maxYPolyRoi; i++)
+        for(int i = minYPolyRoi; i < maxYRoi; i++)
         {
             cv::Point pointLoc = cv::Point(lanePolynomial.getLanePoly().at(i)+proj_image_w_half, i);
             cv::circle(transformedImagePaintableLaneModel,pointLoc,0,cv::Scalar(b,g,r),-1);
@@ -381,10 +415,10 @@ vector<vector<LineSegment<int>> > cLaneDetectionFu::getScanlines() {
     vector<vector<LineSegment<int>> > scanlines;
 
     vector<cv::Point> checkContour;
-    checkContour.push_back(cv::Point(proj_image_w_half-(roi_bottom_w/2),maxYPolyRoi-1));
-    checkContour.push_back(cv::Point(proj_image_w_half+(roi_bottom_w/2),maxYPolyRoi-1));
-    checkContour.push_back(cv::Point(proj_image_w_half+(roi_top_w/2),minYRoi));
-    checkContour.push_back(cv::Point(proj_image_w_half-(roi_top_w/2),minYRoi));
+    checkContour.push_back(cv::Point(proj_image_w_half-(roi_bottom_w/2),maxYRoi-1));
+    checkContour.push_back(cv::Point(proj_image_w_half+(roi_bottom_w/2),maxYRoi-1));
+    checkContour.push_back(cv::Point(proj_image_w_half+(roi_top_w/2),minYPolyRoi));
+    checkContour.push_back(cv::Point(proj_image_w_half-(roi_top_w/2),minYPolyRoi));
     
     int scanlineStart = 0;
     int scanlineEnd = proj_image_w;
@@ -711,7 +745,7 @@ int cLaneDetectionFu::horizDistanceToPolynomial(NewtonPolynomial& poly, FuPoint<
  * @return          True, if the point lies within the default ROI
  */
 bool cLaneDetectionFu::isInDefaultRoi(ePosition position, FuPoint<int> &p) {
-    if (p.getY() < minYRoi || p.getY() > maxYDefaultRoi) {
+    if (p.getY() < minYDefaultRoi || p.getY() > maxYRoi) {
         return false;
     }
     else if (horizDistanceToDefaultLine(position, p)
@@ -731,7 +765,7 @@ bool cLaneDetectionFu::isInDefaultRoi(ePosition position, FuPoint<int> &p) {
  * @return          True, if the point lies within the polynomial's ROI
  */
 bool cLaneDetectionFu::isInPolyRoi(NewtonPolynomial &poly, FuPoint<int> &p) {
-    if (p.getY() < minYRoi || p.getY() > maxYPolyRoi) {
+    if (p.getY() < minYPolyRoi || p.getY() > maxYRoi) {
         return false;
     }
     else if (horizDistanceToPolynomial(poly, p) <= interestDistancePoly) {
