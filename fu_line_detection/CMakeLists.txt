@@ -41,6 +41,13 @@ find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs cv_bridge pc
 #   std_msgs  # Or other packages containing msgs
 # )
 
+#add dynamic reconfigure api
+#find_package(catkin REQUIRED dynamic_reconfigure)
+generate_dynamic_reconfigure_options(
+  cfg/LaneDetection.cfg
+  #...
+)
+
 ###################################
 ## catkin specific configuration ##
 ###################################
@@ -146,3 +153,8 @@ install(TARGETS line_detection_fu_node
 # catkin_add_nosetests(test)
 
 set(CMAKE_CXX_FLAGS "-std=c++0x ${CMAKE_CXX_FLAGS}")
+
+
+
+# make sure configure headers are built before any node using them
+add_dependencies(line_detection_fu_node ${PROJECT_NAME}_gencfg)

@@ -57,6 +57,9 @@ THIS SOFTWARE IS PROVIDED BY AUDI AG AND CONTRIBUTORS “AS IS” AND ANY EXPRESS OR
 #include "tools/enums.h"
 #include "tools/IPMapper.h"
 
+#include <dynamic_reconfigure/server.h>
+#include <line_detection_fu/LaneDetectionConfig.h>
+
 
 using namespace std;
 
@@ -238,7 +241,8 @@ class cLaneDetectionFu
         double lastAngle;
 
         int maxAngleDiff;
-        
+
+
 
     public:
         
@@ -300,6 +304,9 @@ class cLaneDetectionFu
         bool gradientsSimilar(double&, double&);
 
         ePosition maxProportion();
+
+        void config_callback(line_detection_fu::LaneDetectionConfig &config, uint32_t level);
+        
 };
 
 #endif 

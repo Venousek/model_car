@@ -2,7 +2,7 @@
 
 using namespace std;
 
-#define PAINT_OUTPUT
+//#define PAINT_OUTPUT
 #define PUBLISH_DEBUG_OUTPUT
 
 static const uint32_t MY_ROS_QUEUE_SIZE = 1000;
@@ -125,7 +125,7 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh)
     lanePoly             = NewtonPolynomial();
     lanePolynomial       = LanePolynomial();
 
-    maxDistance = 2;  
+    maxDistance = 1;  
 
     lastAngle = 0; 
 
@@ -159,6 +159,11 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh)
     //the outer vector represents rows on image, inner vector is vector of line segments of one row, usualy just one line segment
     //we should generate this only once in the beginning! or even just have it pregenerated for our cam
     scanlines = getScanlines();
+
+    dynamic_reconfigure::Server<line_detection_fu::LaneDetectionConfig> server;
+    dynamic_reconfigure::Server<line_detection_fu::LaneDetectionConfig>::CallbackType f;
+    f = boost::bind(&cLaneDetectionFu::config_callback, this, _1, _2);
+    server.setCallback(f);
 }
 
 cLaneDetectionFu::~cLaneDetectionFu()
@@ -1561,13 +1566,44 @@ void cLaneDetectionFu::pubAngle()
     publish_angle.publish(angleMsg);
 }
 
+void cLaneDetectionFu::config_callback(line_detection_fu::LaneDetectionConfig &config, uint32_t level) {
+    ROS_ERROR("Reconfigure Request");
+
+    defaultXLeft = config.defaultXLeft;
+    defaultXCenter = config.defaultXCenter;
+    defaultXRight = config.defaultXRight;
+    interestDistancePoly = config.interestDistancePoly;
+    interestDistanceDefault= config.interestDistanceDefault;
+    iterationsRansac = config.iterationsRansac;
+    maxYRoi = config.maxYRoi;
+    minYDefaultRoi = config.minYDefaultRoi;
+    minYPolyRoi = config.minYPolyRoi;
+    polyY1 = config.polyY1;
+    polyY2 = config.polyY2;
+    polyY3 = config.polyY3;
+    detectLaneStartX = config.detectLaneStartX;
+    maxAngleDiff = config.maxAngleDiff;
+    proj_y_start = config.proj_y_start;
+    roi_top_w = config.roi_top_w;
+    roi_bottom_w = config.roi_bottom_w;
+    proportionThreshould = config.proportionThreshould;
+    m_gradientThreshold = config.m_gradientThreshold;
+    m_nonMaxWidth = config.m_nonMaxWidth;
+    laneMarkingSquaredThreshold = config.laneMarkingSquaredThreshold;
+    angleAdjacentLeg = config.angleAdjacentLeg;
+    scanlinesVerticalDistance = config.scanlinesVerticalDistance;
+    scanlinesMaxCount = config.scanlinesMaxCount;
+
+    scanlines = getScanlines();
+}
 
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "cLaneDetectionFu");
     ros::NodeHandle nh;
-
+    
     cLaneDetectionFu node(nh);
+
     while(ros::ok())
     {
         ros::spinOnce();
