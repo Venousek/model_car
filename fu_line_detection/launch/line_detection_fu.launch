@@ -28,10 +28,10 @@
     <param name="polyY1"                        type="int"    value="155"/>
     <param name="polyY2"                        type="int"    value="145"/>    
     <param name="polyY3"                        type="int"    value="130"/>    
-    <param name="detectLaneStartX"              type="int"    value="155"/>
+    <param name="detectLaneStartX"              type="int"    value="155"/> <!--this was originally 0.7m, which is about 90 in our case... used for gradient computation, might help us to get rid of too crazy polynomials-->
     <param name="maxAngleDiff"                  type="int"    value="999"/>
 
-    <param name="camera_name"     		type="string"   value="app/camera/rgb/image_raw"/>      
+    <param name="camera_name"     		type="string"   value="usb_cam/image_raw"/>      
     <param name="cam_deg"             	type="double"   value="8"/>
     <param name="cam_height"           	type="double"   value="18"/>
 

@@ -245,14 +245,11 @@ class cLaneDetectionFu
 
 
     public:
-        
-        void resetSystem();
-
+                
     	cLaneDetectionFu(ros::NodeHandle nh);
 
     	virtual ~cLaneDetectionFu();
-        int Init();
-
+        
         void ProcessInput(const sensor_msgs::Image::ConstPtr& msg);
         
         void pubRGBImageMsg(cv::Mat& rgb_mat, image_transport::CameraPublisher publisher);

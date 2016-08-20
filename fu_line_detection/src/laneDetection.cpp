@@ -159,29 +159,15 @@ cLaneDetectionFu::cLaneDetectionFu(ros::NodeHandle nh)
     //the outer vector represents rows on image, inner vector is vector of line segments of one row, usualy just one line segment
     //we should generate this only once in the beginning! or even just have it pregenerated for our cam
     scanlines = getScanlines();
-
-    dynamic_reconfigure::Server<line_detection_fu::LaneDetectionConfig> server;
-    dynamic_reconfigure::Server<line_detection_fu::LaneDetectionConfig>::CallbackType f;
-    f = boost::bind(&cLaneDetectionFu::config_callback, this, _1, _2);
-    server.setCallback(f);
 }
 
 cLaneDetectionFu::~cLaneDetectionFu()
 {
 }
 
-int cLaneDetectionFu::Init()
-{
-	return 1;
-}
-
-void cLaneDetectionFu::resetSystem()
-{    
-}
-
 void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
 {
-    //ROS_INFO("Got IMG!");
+    ROS_ERROR_STREAM("defaultXLeft: "<<defaultXLeft);
 
     // clear some stuff from the last cycle
     bestPolyLeft = std::make_pair(NewtonPolynomial(), 0);
@@ -1204,58 +1190,6 @@ void cLaneDetectionFu::detectLane() {
                 createLanePoly(maxPos);         
             }
         }
-
-
-
-
-
-
-
-/*
-        double gradLeft = gradient(startX, pointsLeft,
-                polyLeft.getCoefficients());
-
-        double gradCenter2 = gradient(startX, pointsCenter,
-                polyCenter.getCoefficients());
-
-        double gradCenter1 = nextGradient(startX, polyLeft, pointsLeft,
-                pointsCenter, polyLeft.getCoefficients(),
-                polyCenter.getCoefficients(), gradLeft);
-
-        double gradRight1 = nextGradient(startX, polyLeft, pointsLeft,
-                pointsRight, polyLeft.getCoefficients(),
-                polyRight.getCoefficients(), gradLeft);
-
-        double gradRight2 = nextGradient(startX, polyCenter, pointsCenter,
-                pointsRight, polyCenter.getCoefficients(),
-                polyRight.getCoefficients(), gradCenter2);
-
-        if (gradientsSimilar(gradLeft, gradCenter1)) {
-            // ?!
-            if (gradientsSimilar(gradCenter1, gradRight1)) {
-                createLanePoly(LEFT);
-            }
-            else {
-                createLanePoly(LEFT);
-            }
-        }
-        else {
-            if (gradientsSimilar(gradCenter2, gradRight2)) {
-                createLanePoly(RIGHT);
-            }
-            else {
-                ePosition maxPos = maxProportion();
-                if (maxPos == LEFT) {
-                    createLanePoly(LEFT);
-                }
-                else if (maxPos == CENTER) {
-                    createLanePoly(CENTER);
-                }
-                else if (maxPos == RIGHT) {
-                    createLanePoly(RIGHT);
-                }
-            }
-        }*/
     }
     else if (!polyDetectedLeft && !polyDetectedCenter && !polyDetectedRight) {
         lanePoly.clear();
@@ -1602,7 +1536,12 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "cLaneDetectionFu");
     ros::NodeHandle nh;
     
-    cLaneDetectionFu node(nh);
+    cLaneDetectionFu node = cLaneDetectionFu(nh);
+
+    dynamic_reconfigure::Server<line_detection_fu::LaneDetectionConfig> server;
+    dynamic_reconfigure::Server<line_detection_fu::LaneDetectionConfig>::CallbackType f;
+    f = boost::bind(&cLaneDetectionFu::config_callback, &node, _1, _2);
+    server.setCallback(f);
 
     while(ros::ok())
     {
