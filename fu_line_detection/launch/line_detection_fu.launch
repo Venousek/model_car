@@ -7,11 +7,11 @@
   	<param name="proj_image_h"            	    type="int" 	  value="160"/>
   	<param name="proj_image_w"            	    type="int" 	  value="160"/>
   	<param name="proj_image_horizontal_offset"  type="int"    value="0"/>
-    <param name="roi_top_w"            	        type="int" 	  value="70"/>
-  	<param name="roi_bottom_w"            	    type="int" 	  value="70"/>
+    <param name="roi_top_w"            	        type="int" 	  value="132"/>
+  	<param name="roi_bottom_w"            	    type="int" 	  value="54"/>
     <param name="maxYRoi"                       type="int"    value="159"/>
     <param name="minYDefaultRoi"                type="int"    value="110"/>
-    <param name="minYPolyRoi"                   type="int"    value="50"/>
+    <param name="minYPolyRoi"                   type="int"    value="68"/>
     <param name="defaultXLeft"                  type="int"    value="20"/>
     <param name="defaultXCenter"                type="int"    value="60"/>
     <param name="defaultXRight"                 type="int"    value="100"/>

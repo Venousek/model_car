@@ -256,6 +256,8 @@ class cLaneDetectionFu
 
         void pubAngle();
 
+        void pubGradientAngle();
+
         std::vector<std::vector<LineSegment<int>> > getScanlines();
 
         std::vector<std::vector<EdgePoint> > scanImage(cv::Mat image);
