@@ -349,7 +349,7 @@ void cLaneDetectionFu::ProcessInput(const sensor_msgs::Image::ConstPtr& msg)
 
     detectLane();
 
-    pubGradientAngle();
+    pubAngle();
 
     cv::Mat transformedImagePaintableLaneModel = transformedImage.clone();
     cv::cvtColor(transformedImagePaintableLaneModel,transformedImagePaintableLaneModel,CV_GRAY2BGR);
@@ -957,15 +957,15 @@ void cLaneDetectionFu::createLanePoly(ePosition position) {
  
     if (position == LEFT) {
         usedPoly = polyLeft;
-        dRight = defaultXLeft;
+        dRight = defaultXLeft-5;
     }
     else if (position == CENTER) {
         usedPoly = polyCenter;
-        dRight = defaultXCenter;
+        dRight = defaultXCenter-5;
     }
     else if (position == RIGHT) {
         usedPoly = polyRight;
-        dRight = defaultXRight;
+        dRight = defaultXRight+5;
     }
 
 
@@ -1536,6 +1536,10 @@ void cLaneDetectionFu::pubRGBImageMsg(cv::Mat& rgb_mat, image_transport::CameraP
 
 void cLaneDetectionFu::pubAngle()
 {
+    if (!lanePolynomial.hasDetected()) {
+	return;
+    }
+
     double oppositeLeg = lanePolynomial.getLanePoly().at(proj_image_h-angleAdjacentLeg);    
     double result = atan (oppositeLeg/angleAdjacentLeg) * 180 / PI;
 

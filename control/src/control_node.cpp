@@ -28,8 +28,8 @@ class auto_control
   public:
     auto_control(ros::NodeHandle nh) : nh_(nh), priv_nh_("~")
     {
-      priv_nh_.param<float>("steering_Kp", steering_Kp_, 0.7);
-      priv_nh_.param<float>("steering_Kd", steering_Kd_, 1.0);
+      priv_nh_.param<float>("steering_Kp", steering_Kp_, 2.7);
+      priv_nh_.param<float>("steering_Kd", steering_Kd_, 0.0);
       priv_nh_.param<float>("steering_Ki", steering_Ki_, 0.0);
       priv_nh_.param<float>("speed_Kp", speed_Kp_, 0.05);
       priv_nh_.param<float>("maximum_rpm", maximum_rpm_, 1000);
@@ -62,12 +62,12 @@ void auto_control::curvatureCallback(const std_msgs::Float32 curvature)
     DesiredSteering=minimum_steering_;
 
   
-  if ((DesiredSteering<1)&&(-1<DesiredSteering))
-    DesiredSpeed=maximum_rpm_;
+  if ((DesiredSteering == 0))
+      DesiredSpeed=maximum_rpm_;
   else
       DesiredSpeed=minimum_rpm_+speed_Kp_*(maximum_rpm_/abs(DesiredSteering));
 
-  if  (DesiredSpeed>maximum_rpm_)
+//  if  (DesiredSpeed>maximum_rpm_)
       DesiredSpeed=maximum_rpm_; 
 
   desired_steering.data=DesiredSteering+90;

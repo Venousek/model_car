@@ -21,6 +21,8 @@ find_package(catkin REQUIRED COMPONENTS roscpp std_msgs sensor_msgs cv_bridge pc
 ## Declare ROS messages and services ##
 #######################################
 
+
+
 ## Generate messages in the 'msg' folder
 # add_message_files(
 #   FILES
@@ -114,7 +116,10 @@ install(TARGETS line_detection_node
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
-
+install(DIRECTORY launch
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  USE_SOURCE_PERMISSIONS
+)
 ## Mark cpp header files for installation
 # install(DIRECTORY include/${PROJECT_NAME}/
 #   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
